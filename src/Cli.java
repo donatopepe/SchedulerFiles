@@ -53,7 +53,8 @@ public class Cli {
             return EXIT_ERROR;
         }
 
-        // Run headless
+        // Run headless (suppress Logger console output)
+        MoveClass.setSuppressLogger(true);
         JTextArea dummyLog = new JTextArea();
         JLabel dummyProgress = new JLabel();
 
