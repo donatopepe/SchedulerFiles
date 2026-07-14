@@ -85,6 +85,9 @@ public class SchedulerFiles extends javax.swing.JFrame {
         // Drag & drop
         connectToDragDrop();
 
+        // Check for updates in background
+        checkForUpdates();
+
         // Verify hash checkbox
         verifyHash.setFont(new java.awt.Font("Arial", 0, 12));
         getContentPane().add(verifyHash, new org.netbeans.lib.awtextra.AbsoluteConstraints(400, 160, 160, 25));
@@ -286,6 +289,32 @@ public class SchedulerFiles extends javax.swing.JFrame {
     private void connectToDragDrop() {
         new java.awt.dnd.DropTarget(SourcePath, new DragListener(SourcePath));
         new java.awt.dnd.DropTarget(DestinationPath, new DragListener(DestinationPath));
+    }
+
+    private void checkForUpdates() {
+        new Thread(() -> {
+            Updater updater = new Updater();
+            String latest = updater.fetchLatestVersion();
+            if (latest == null) return; // no internet / error
+
+            String current = updater.getCurrentVersion();
+            if (Updater.compareVersions(current, latest) > 0) {
+                int choice = javax.swing.JOptionPane.showOptionDialog(
+                    this,
+                    "<html>A new version of SchedulerFiles is available!<br>"
+                    + "Current: <b>" + current + "</b><br>"
+                    + "Latest:  <b>" + latest + "</b><br><br>"
+                    + "Open the download page?</html>",
+                    "Update Available",
+                    javax.swing.JOptionPane.YES_NO_OPTION,
+                    javax.swing.JOptionPane.INFORMATION_MESSAGE,
+                    null, new String[]{"Download", "Later"}, "Download");
+
+                if (choice == javax.swing.JOptionPane.YES_OPTION) {
+                    Updater.openReleasesPage();
+                }
+            }
+        }, "update-checker").start();
     }
 
     private void updateButtonLabel() {
