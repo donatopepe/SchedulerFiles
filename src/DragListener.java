@@ -43,20 +43,22 @@ public class DragListener implements DropTargetListener {
         Transferable t = dtde.getTransferable();
         DataFlavor[] df = t.getTransferDataFlavors();
 
-        for (DataFlavor f : df) {
-            try {
+        try {
+            for (DataFlavor f : df) {
                 if (f.isFlavorJavaFileListType()) {
                     List<File> files = (List<File>) t.getTransferData(f);
                     for (File file : files) {
                         if (file.isDirectory()) {
                             pathLabel.setText(file.getAbsolutePath());
-                            break; // first directory found
+                            break;
                         }
                     }
                 }
-            } catch (Exception ex) {
-                pathLabel.setText("Error: " + ex.getMessage());
             }
+        } catch (Exception ex) {
+            pathLabel.setText("Error: " + ex.getMessage());
+        } finally {
+            pathLabel.setBackground(java.awt.Color.WHITE);
         }
     }
 }
