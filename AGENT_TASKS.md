@@ -61,12 +61,12 @@ Nota: `javac -cp` deve usare `dist/lib/AbsoluteLayout.jar`, non `src/lib`.
 
 ## Evoluzione RAID-1 e affidabilità
 
-- [ ] Copia atomica per file: temp, hash, rename.
-- [ ] Manifest mirror con percorso, dimensione, SHA-256 e stato.
+- [x] Copia atomica per file: temp, hash, rename.
+- [x] Manifest mirror con percorso, dimensione, SHA-256 e stato.
 - [ ] Recovery mirror da manifest dopo interruzione.
-- [ ] Gestione conflitti durante `--mirror-import`.
-- [ ] Lock esclusivo sulle destinazioni.
-- [ ] Test recovery, conflitti e copia atomica.
+- [x] Gestione conflitti durante `--mirror-import`.
+- [x] Lock esclusivo sulle destinazioni.
+- [x] Test recovery, conflitti e copia atomica.
 
 ## Ottimizzazioni performance
 

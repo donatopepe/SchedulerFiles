@@ -34,7 +34,6 @@ public final class TransactionLog implements Closeable {
     public void write(String line) throws IOException {
         writer.write(line);
         writer.newLine();
-        writer.flush();
     }
 
     public static String timestamp() {
@@ -46,6 +45,7 @@ public final class TransactionLog implements Closeable {
         IOException failure = null;
         try {
             write("# ----- END -----");
+            writer.flush();
         } catch (IOException e) {
             failure = e;
         }
