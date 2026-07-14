@@ -10,8 +10,5 @@ nbproject/private/
 # Build output
 build/
 
-# Distribution (jar can be rebuilt)
-dist/
-
 # Pi agent lock file
 .pi-loop.json.lock
