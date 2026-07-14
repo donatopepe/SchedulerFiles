@@ -43,9 +43,10 @@ jobs:
           cp build/classes/about.html build/classes/about-en.html build/jar/
           mkdir -p build/jar/icon
           cp build/classes/icon/schedulerfiles.png build/classes/icon/schedulerfiles.ico build/jar/icon/
+          cd "$GITHUB_WORKSPACE/build/jar"
           jar cfm "$GITHUB_WORKSPACE/dist/SchedulerFiles.jar" \
-            "$GITHUB_WORKSPACE/build/Manifest.txt" \
-            -C "$GITHUB_WORKSPACE/build/jar" .
+            "$GITHUB_WORKSPACE/build/Manifest.txt" .
+          cd "$GITHUB_WORKSPACE"
           test -s "$GITHUB_WORKSPACE/dist/SchedulerFiles.jar"
           jar tf "$GITHUB_WORKSPACE/dist/SchedulerFiles.jar" | grep -q 'SchedulerFiles.class'
           jar tf "$GITHUB_WORKSPACE/dist/SchedulerFiles.jar" | grep -q 'org/netbeans/lib/awtextra/AbsoluteLayout.class'
