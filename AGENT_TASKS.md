@@ -78,13 +78,14 @@ Nota: `javac -cp` deve usare `dist/lib/AbsoluteLayout.jar`, non `src/lib`.
 
 ## Prossimo lavoro consigliato
 
-Applicare ottimizzazioni performance in ordine, misurando test prima/dopo.
+Nessun TODO tecnico urgente. Possibili evoluzioni future: test GUI reali, installer Windows `.exe` con icona, benchmark dataset grandi, recovery manifest avanzato.
 
 ## Stato corrente
 
 - GitHub Actions rimosso su richiesta: build/release eseguiti localmente.
 - JAR versionato aggiornato direttamente dopo build locale.
 - Ultimo risultato: **144 test passati, 0 falliti**.
+- Nessun TODO tecnico urgente residuo.
 - Target bytecode: Java 8, major version 52.
 - `dist/SchedulerFiles.jar` self-contained con AbsoluteLayout, guide e icone.
 - Push automatico richiesto dall'utente dopo modifiche valide.
