@@ -41,7 +41,6 @@ public class infoJFrame extends javax.swing.JFrame {
                 try {
                     Desktop.getDesktop().browse(e.getURL().toURI());
                 } catch (IOException | URISyntaxException ex) {
-                    // ignore
                 }
             }
         });
@@ -59,7 +58,8 @@ public class infoJFrame extends javax.swing.JFrame {
                 try {
                     Desktop.getDesktop().browse(
                         new java.net.URI("https://github.com/donatopepe/SchedulerFiles"));
-                } catch (Exception ex) {}
+                } catch (Exception ex) {
+                }
             }
         });
 
@@ -85,48 +85,45 @@ public class infoJFrame extends javax.swing.JFrame {
     }
 
     private String buildHtmlContent() {
-        return "<html><body style='font-family:Arial;font-size:12px;padding:4px;'>"
+        return "<html><meta charset='utf-8'><body style='font-family:Arial;font-size:12px;padding:4px;'>"
 
             + "<h3>How it works</h3>"
 
             + "<ol>"
-            + "<li><b>Select source & destination</b> — type paths, use <b>Browse</b>, "
-            + "or <b>drag & drop</b> folders onto the fields.</li>"
-            + "<li><b>Choose operation</b> — check <b>Copy</b> to duplicate files, "
-            + "uncheck to <b>move</b> (files are deleted from source).</li>"
+            + "<li><b>Select source &amp; destination</b> - type paths, use <b>Browse</b>, "
+            + "or <b>drag &amp; drop</b> folders onto the fields.</li>"
+            + "<li><b>Choose operation</b> - check <b>Copy</b> to duplicate files, "
+            + "uncheck to <b>move</b> (files removed from source).</li>"
             + "<li><b>Tree structure</b>:<ul>"
-            + "<li><b>Original Tree</b> — preserves the exact folder hierarchy of the source.</li>"
-            + "<li><b>Scheduled</b> — reorganizes files as "
-            + "<code>year/month/extension/</code> using last-modified date.</li>"
+            + "<li><b>Original Tree</b> - preserves source folder hierarchy.</li>"
+            + "<li><b>Scheduled</b> - reorganizes as "
+            + "<code>year/month/extension/</code> by last-modified date.</li>"
             + "</ul></li>"
-            + "<li><b>Compare options</b> prevent duplicate copies:<ul>"
-            + "<li><b>Compare by name</b> — skip files with the same filename.</li>"
-            + "<li><b>Compare by content</b> — compare bytes (or SHA-256 if Verify is on).</li>"
-            + "<li><b>Verify SHA-256</b> — compute hash before &amp; after, "
-            + "log integrity result. When combined with content compare, "
-            + "uses hash comparison (faster for large files).</li>"
+            + "<li><b>Compare options</b> prevent duplicates:<ul>"
+            + "<li><b>Compare by name</b> - skip files with same filename.</li>"
+            + "<li><b>Compare by content</b> - byte compare (or SHA-256 if Verify on).</li>"
+            + "<li><b>Verify SHA-256</b> - hash before &amp; after, "
+            + "log integrity. With content compare uses hash (faster).</li>"
             + "</ul></li>"
-            + "<li>Click <b>Start</b> to begin. Progress shows percentage and file count.</li>"
-            + "<li>Click <b>Cancel</b> to stop gracefully mid-operation.</li>"
+            + "<li>Click <b>Start</b> to begin. Progress = % + file count.</li>"
+            + "<li>Click <b>Cancel</b> to stop mid-operation.</li>"
             + "</ol>"
 
             + "<h3>Transaction log</h3>"
-            + "<p>After each operation a file named <code>_files_scheduler.log</code> "
-            + "is created in the <b>destination</b> directory. It records every "
-            + "operation (COPY / MOVE / SKIP), timestamps, file sizes, and "
-            + "SHA-256 hashes when verification is enabled.</p>"
+            + "<p>A file <code>_files_scheduler.log</code> is created in the "
+            + "<b>destination</b> folder. It logs every operation "
+            + "(COPY / MOVE / SKIP), timestamps, sizes, and hashes.</p>"
 
-            + "<h3>Automatic updates</h3>"
-            + "<p>On startup the app checks GitHub for a newer release. "
-            + "If found, a dialog offers to open the download page.</p>"
+            + "<h3>Auto-update</h3>"
+            + "<p>On startup checks GitHub for a newer release. "
+            + "Dialog offers download link if found.</p>"
 
             + "<h3>Requirements</h3>"
-            + "<p>Java Runtime Environment (JRE) 8 or later. "
-            + "No other dependencies — the JAR is self-contained.</p>"
+            + "<p>JRE 8 or later. Self-contained JAR (no dependencies).</p>"
 
             + "<hr>"
             + "<p><b>License:</b> Free software. Do what you want. "
-            + "No warranty, no liability — use at your own risk.</p>"
+            + "No warranty, no liability - use at your own risk.</p>"
             + "<p style='color:gray;font-size:10px;'>Copyright (C) 2020 Donato Pepe</p>"
 
             + "</body></html>";
