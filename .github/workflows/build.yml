@@ -36,16 +36,17 @@ jobs:
 
       - name: Package JAR
         run: |
+          set -euxo pipefail
           mkdir -p build/jar/lib
           cp dist/lib/AbsoluteLayout.jar build/jar/lib/
           find build/classes -maxdepth 1 -name '*.class' ! -name '*Test*.class' -exec cp {} build/jar/ \;
           cp build/classes/about.html build/classes/about-en.html build/jar/
           mkdir -p build/jar/icon
           cp build/classes/icon/schedulerfiles.png build/classes/icon/schedulerfiles.ico build/jar/icon/
-          cd "$GITHUB_WORKSPACE/build/jar"
-          jar cfm "$GITHUB_WORKSPACE/dist/SchedulerFiles.jar" \
-            "$GITHUB_WORKSPACE/build/Manifest.txt" .
-          cd "$GITHUB_WORKSPACE"
+          jar cf "$GITHUB_WORKSPACE/dist/SchedulerFiles.jar" \
+            -C "$GITHUB_WORKSPACE/build/jar" .
+          jar ufm "$GITHUB_WORKSPACE/dist/SchedulerFiles.jar" \
+            "$GITHUB_WORKSPACE/build/Manifest.txt"
           test -s "$GITHUB_WORKSPACE/dist/SchedulerFiles.jar"
           jar tf "$GITHUB_WORKSPACE/dist/SchedulerFiles.jar" | grep -q 'SchedulerFiles.class'
           jar tf "$GITHUB_WORKSPACE/dist/SchedulerFiles.jar" | grep -q 'org/netbeans/lib/awtextra/AbsoluteLayout.class'
