@@ -32,7 +32,7 @@ code { background: #eeeeee; color: #202124; }
 
 <h3>Dest 2 / RAID-1 software</h3>
 <p><b>Dest 2 è opzionale.</b> Se compilato, Copy esegue prima trasferimento su Dest, poi replica su Dest 2. Operazione termina con errore se una destinazione fallisce. Dest 2 deve essere diversa da Source e Dest. Move con Dest 2 non è consentito.</p>
-<p>Replica non è RAID hardware né transazione atomica: se secondo disco si guasta, controlla log e file mancanti prima di riprovare.</p>
+<p>Se Dest 2 contiene file extra, Info chiede se eliminarli, conservarli o annullare. Replica non è RAID hardware né transazione atomica: se secondo disco si guasta, controlla log e file mancanti prima di riprovare.</p>
 
 <h3>Log e sicurezza</h3>
 <p><code>_files_scheduler.log</code> viene scritto in ogni destinazione. Contiene operazioni, timestamp, dimensioni e hash.</p>

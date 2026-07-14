@@ -99,7 +99,12 @@ public class Cli {
         if (dest2 != null && !mc.isCancelled() && !failed) {
             dummyLog.append("===== SECOND DESTINATION =====\n");
             try {
-                new MirrorService().synchronize(dest, dest2);
+                MirrorService mirror = new MirrorService();
+                if (mirror.hasStaleEntries(dest, dest2)) {
+                    dummyLog.append("Warning: second destination contains extra files.\n");
+                    dummyLog.append("Use --mirror-delete to remove them.\n");
+                }
+                mirror.synchronize(dest, dest2, opts.mirrorDelete);
                 dummyLog.append("RAID-1 parity verified: destinations synchronized\n");
             } catch (IOException e) {
                 failed = true;
@@ -147,6 +152,7 @@ public class Cli {
         out.println("  -s, --source <path>        Source directory");
         out.println("  -d, --dest <path>          Primary destination directory");
         out.println("      --dest2 <path>         Second destination (RAID-1 copy mode)");
+        out.println("      --mirror-delete        Delete extra files in Dest 2 after confirmation");
         out.println();
         out.println("Mode (default: copy):");
         out.println("  -c, --copy                 Copy files (preserve originals)");
@@ -182,6 +188,7 @@ public class Cli {
         boolean compareName;
         boolean compareContent;
         boolean verifyHash = true;
+        boolean mirrorDelete;
         boolean help;
         boolean showVersion;
 
@@ -210,6 +217,9 @@ public class Cli {
                     case "--dest2":
                         if (++i >= args.length) { err("--dest2 requires a path"); return false; }
                         dest2 = args[i];
+                        break;
+                    case "--mirror-delete":
+                        mirrorDelete = true;
                         break;
                     case "-c":
                     case "--copy":
