@@ -6,6 +6,8 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -17,9 +19,9 @@ public class Updater {
     private static final Logger LOG = Logger.getLogger(Updater.class.getName());
 
     // Cache: avoid repeated API calls within the same JVM session
-    private static String cachedLatestVersion;
-    private static long cacheTimestamp;
+    private static final Map<String, CachedVersion> CACHE = new HashMap<>();
     private static final long CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+    private static final Object CACHE_LOCK = new Object();
 
     private final String currentVersion;
     private final String apiUrl;  // overridable for testing
@@ -31,33 +33,28 @@ public class Updater {
     /** Package-private: allows injecting a custom API URL (e.g. local test server). */
     Updater(String apiUrl) {
         this.currentVersion = detectVersion();
-        this.apiUrl = apiUrl;
+        this.apiUrl = apiUrl == null ? API_URL : apiUrl;
     }
 
     /** Read version from manifest, or return "0.0.0" fallback. */
     private static String detectVersion() {
-        // First try: Package API (works from JAR for named packages)
         String v = Updater.class.getPackage().getImplementationVersion();
         if (v != null) return v;
 
-        // Second try: read META-INF/MANIFEST.MF directly
         try (java.io.InputStream is = Updater.class.getResourceAsStream(
                 "/META-INF/MANIFEST.MF")) {
-            if (is != null) {
-                java.util.Scanner sc = new java.util.Scanner(is, "UTF-8");
-                sc.useDelimiter("\\A");
-                if (sc.hasNext()) {
-                    String content = sc.next();
-                    for (String line : content.split("\n")) {
-                        if (line.startsWith("Implementation-Version:")) {
-                            return line.substring("Implementation-Version:".length()).trim();
-                        }
-                    }
+            if (is == null) return "0.0.0";
+            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream(1024);
+            byte[] buf = new byte[512];
+            int n;
+            while ((n = is.read(buf)) != -1) baos.write(buf, 0, n);
+            String content = baos.toString("UTF-8");
+            for (String line : content.split("\n")) {
+                if (line.startsWith("Implementation-Version:")) {
+                    return line.substring("Implementation-Version:".length()).trim();
                 }
-                sc.close();
             }
         } catch (Exception ignored) {}
-
         return "0.0.0";
     }
 
@@ -66,10 +63,16 @@ public class Updater {
     }
 
     public String fetchLatestVersion() {
+        synchronized (CACHE_LOCK) {
+            return fetchLatestVersionLocked();
+        }
+    }
+
+    private String fetchLatestVersionLocked() {
         // Return cached result if still fresh
-        if (cachedLatestVersion != null
-            && System.currentTimeMillis() - cacheTimestamp < CACHE_TTL_MS) {
-            return cachedLatestVersion;
+        CachedVersion cached = CACHE.get(apiUrl);
+        if (cached != null && System.currentTimeMillis() - cached.timestamp < CACHE_TTL_MS) {
+            return cached.version;
         }
 
         HttpURLConnection conn = null;
@@ -96,9 +99,11 @@ public class Updater {
                 while ((line = br.readLine()) != null) {
                     json.append(line);
                 }
-                cachedLatestVersion = parseTagName(json.toString());
-                cacheTimestamp = System.currentTimeMillis();
-                return cachedLatestVersion;
+                String latest = parseTagName(json.toString());
+                if (latest != null) {
+                    CACHE.put(apiUrl, new CachedVersion(latest, System.currentTimeMillis()));
+                }
+                return latest;
             }
         } catch (IOException | URISyntaxException e) {
             LOG.log(Level.FINE, "Update check failed: " + e.getMessage(), e);
@@ -110,31 +115,110 @@ public class Updater {
 
     /** Clear the cached version (for testing). */
     static void clearCache() {
-        cachedLatestVersion = null;
-        cacheTimestamp = 0;
+        synchronized (CACHE_LOCK) {
+            CACHE.clear();
+        }
+    }
+
+    private static final class CachedVersion {
+        final String version;
+        final long timestamp;
+
+        CachedVersion(String version, long timestamp) {
+            this.version = version;
+            this.timestamp = timestamp;
+        }
     }
 
     static String parseTagName(String json) {
         if (json == null) return null;
-        String key = "\"tag_name\":\"";
-        int idx = json.indexOf(key);
-        if (idx < 0) return null;
-        idx += key.length();
-        int end = json.indexOf("\"", idx);
-        if (end < 0) return null;
-        return json.substring(idx, end);
+        int key = json.indexOf("\"tag_name\"");
+        if (key < 0) return null;
+        int colon = json.indexOf(':', key + 10);
+        if (colon < 0) return null;
+        int start = colon + 1;
+        while (start < json.length() && Character.isWhitespace(json.charAt(start))) start++;
+        if (start >= json.length() || json.charAt(start) != '\"') return null;
+        start++;
+        StringBuilder value = new StringBuilder();
+        boolean escaped = false;
+        for (int i = start; i < json.length(); i++) {
+            char c = json.charAt(i);
+            if (escaped) {
+                value.append(c);
+                escaped = false;
+            } else if (c == '\\') {
+                escaped = true;
+            } else if (c == '\"') {
+                return value.toString();
+            } else {
+                value.append(c);
+            }
+        }
+        return null;
     }
 
     public static int compareVersions(String current, String latest) {
-        String[] curParts = current.replaceAll("^v", "").split("\\.");
-        String[] latParts = latest.replaceAll("^v", "").split("\\.");
-        int len = Math.max(curParts.length, latParts.length);
-        for (int i = 0; i < len; i++) {
-            int c = (i < curParts.length) ? parseIntSafe(curParts[i], 0) : 0;
-            int l = (i < latParts.length) ? parseIntSafe(latParts[i], 0) : 0;
-            if (l != c) return l - c;
+        if (current == null || latest == null) return 0;
+        Version cur = Version.parse(current);
+        Version lat = Version.parse(latest);
+        int core = compareCore(cur.core, lat.core);
+        if (core != 0) return core;
+        if (cur.preRelease == null && lat.preRelease == null) return 0;
+        if (cur.preRelease == null) return -1;
+        if (lat.preRelease == null) return 1;
+
+        String[] curIds = cur.preRelease.split("\\.");
+        String[] latIds = lat.preRelease.split("\\.");
+        for (int i = 0; i < Math.max(curIds.length, latIds.length); i++) {
+            if (i >= curIds.length) return -1;
+            if (i >= latIds.length) return 1;
+            String c = curIds[i];
+            String l = latIds[i];
+            boolean cNum = c.matches("\\d+");
+            boolean lNum = l.matches("\\d+");
+            if (cNum && lNum) {
+                int result = Integer.compare(parseIntSafe(l, Integer.MAX_VALUE),
+                    parseIntSafe(c, Integer.MAX_VALUE));
+                if (result != 0) return result;
+            } else if (cNum != lNum) {
+                return cNum ? -1 : 1;
+            } else {
+                int result = l.compareTo(c);
+                if (result != 0) return result;
+            }
         }
         return 0;
+    }
+
+    private static int compareCore(String[] current, String[] latest) {
+        int len = Math.max(current.length, latest.length);
+        for (int i = 0; i < len; i++) {
+            int c = i < current.length ? parseIntSafe(current[i], 0) : 0;
+            int l = i < latest.length ? parseIntSafe(latest[i], 0) : 0;
+            if (l != c) return Integer.compare(l, c);
+        }
+        return 0;
+    }
+
+    private static final class Version {
+        final String[] core;
+        final String preRelease;
+
+        private Version(String[] core, String preRelease) {
+            this.core = core;
+            this.preRelease = preRelease;
+        }
+
+        static Version parse(String value) {
+            String normalized = value.replaceFirst("^[vV]", "");
+            int build = normalized.indexOf('+');
+            if (build >= 0) normalized = normalized.substring(0, build);
+            int pre = normalized.indexOf('-');
+            String core = pre >= 0 ? normalized.substring(0, pre) : normalized;
+            String preRelease = pre >= 0 ? normalized.substring(pre + 1) : null;
+            return new Version(core.split("\\."), preRelease);
+        }
     }
 
     private static int parseIntSafe(String s, int def) {

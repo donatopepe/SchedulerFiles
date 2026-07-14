@@ -1,22 +1,11 @@
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.nio.MappedByteBuffer;
-import java.nio.channels.FileChannel;
-import java.nio.file.FileVisitOption;
-import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.text.SimpleDateFormat;
 import java.util.Calendar;
-import java.util.Date;
-import java.util.EnumSet;
+import java.util.List;
 import java.util.GregorianCalendar;
 import java.util.HashSet;
 import java.util.HashMap;
@@ -27,10 +16,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JLabel;
 import javax.swing.JTextArea;
+import javax.swing.SwingUtilities;
 
 public class MoveClass implements Runnable {
 
-    private static final String TX_LOG_NAME = "_files_scheduler.log";
     private static final int MAX_DEPTH = 100;
 
     private static volatile boolean suppressLogger;
@@ -53,7 +42,10 @@ public class MoveClass implements Runnable {
     private final boolean verifyHash;
     private final Calendar calendar = new GregorianCalendar();
     private volatile boolean stopRequested;
-    private BufferedWriter txWriter;
+    private volatile boolean operationFailed;
+    private TransactionLog txLog;
+    private boolean txLogFailed;
+    private final TransferService transferService = new TransferService();
     private String cachedSourceHash;  // avoids double hash in skip+verify
 
     private final TreeSet<String> fileAccumulator = new TreeSet<>(new LengthFirstComparator());
@@ -77,51 +69,82 @@ public class MoveClass implements Runnable {
         this.stopRequested = true;
     }
 
+    public boolean isCancelled() {
+        return stopRequested;
+    }
+
+    public boolean hasErrors() {
+        return operationFailed;
+    }
+
     private boolean isStopped() {
         return stopRequested || Thread.currentThread().isInterrupted();
     }
 
     private void log(String message) {
-        textlog.append(message + "\n");
-        textlog.setCaretPosition(textlog.getDocument().getLength());
+        updateSwing(() -> {
+            textlog.append(message + "\n");
+            textlog.setCaretPosition(textlog.getDocument().getLength());
+        });
         if (!suppressLogger) {
             Logger.getLogger(MoveClass.class.getName()).info(message);
+        }
+    }
+
+    private void setProgress(String text) {
+        updateSwing(() -> progressLabel.setText(text));
+    }
+
+    private void updateSwing(Runnable update) {
+        if (SwingUtilities.isEventDispatchThread()) {
+            update.run();
+            return;
+        }
+        try {
+            SwingUtilities.invokeAndWait(update);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (java.lang.reflect.InvocationTargetException e) {
+            Logger.getLogger(MoveClass.class.getName()).log(
+                Level.WARNING, "Swing update failed", e.getCause());
         }
     }
 
     // ---- Transaction log ----
 
     private void openTxLog() throws IOException {
-        Path txPath = destination.resolve(TX_LOG_NAME);
-        boolean exists = Files.exists(txPath);
-        txWriter = new BufferedWriter(new FileWriter(txPath.toFile(), true));
-        if (!exists) {
-            writeTx("# SchedulerFiles transaction log");
-            writeTx("# Op=COPY|MOVE|SKIP|HASH_MISMATCH  Time  Source  Dest  Size  Hash");
-            writeTx("# ===========================================================");
-        }
+        txLog = new TransactionLog(destination);
     }
 
     private void writeTx(String line) throws IOException {
-        if (txWriter != null) {
-            txWriter.write(line);
-            txWriter.newLine();
-            txWriter.flush();
+        if (txLog != null) txLog.write(line);
+    }
+
+    private void writeTransferTx(String line, String operation, Path targetPath) {
+        try {
+            writeTx(line);
+        } catch (IOException e) {
+            operationFailed = true;
+            txLogFailed = true;
+            log("Transaction log failed after successful " + operation + ": "
+                + targetPath + " (" + e.getMessage() + ")");
         }
     }
 
     private String txTimestamp() {
-        return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+        return TransactionLog.timestamp();
     }
 
     private void closeTxLog() {
+        if (txLog == null) return;
         try {
-            if (txWriter != null) {
-                writeTx("# ----- END -----");
-                txWriter.close();
-            }
+            txLog.close();
         } catch (IOException e) {
-            log("Warning: could not close transaction log: " + e.getMessage());
+            operationFailed = true;
+            txLogFailed = true;
+            log("Transaction log close failed: " + e.getMessage());
+        } finally {
+            txLog = null;
         }
     }
 
@@ -152,23 +175,10 @@ public class MoveClass implements Runnable {
             }
         }
 
-        try (FileChannel ch1 = new RandomAccessFile(sourceFile.toString(), "r").getChannel();
-             FileChannel ch2 = new RandomAccessFile(destFile.toString(), "r").getChannel()) {
-            long size = ch1.size();
-            long offset = 0;
-            long chunkSize = Math.min(size, Integer.MAX_VALUE);
-            while (chunkSize > 0) {
-                MappedByteBuffer m1 = ch1.map(FileChannel.MapMode.READ_ONLY, offset, chunkSize);
-                MappedByteBuffer m2 = ch2.map(FileChannel.MapMode.READ_ONLY, offset, chunkSize);
-                for (int pos = 0; pos < chunkSize; pos++) {
-                    if (m1.get(pos) != m2.get(pos)) return false;
-                    if (isStopped()) return false;
-                }
-                offset += chunkSize;
-                chunkSize = Math.min(ch1.size() - offset, Integer.MAX_VALUE);
-            }
+        try {
+            boolean identical = FileComparator.sameBytes(sourceFile, destFile);
             log("Byte compare: " + (System.nanoTime() - start) / 1000000 + "ms");
-            return true;
+            return identical;
         } catch (IOException e) {
             log("Compare error: " + e.getMessage());
             return false;
@@ -255,18 +265,13 @@ public class MoveClass implements Runnable {
 
         String op = copyMode ? "COPY" : "MOVE";
         boolean success = false;
-        if (copyMode) {
-            try {
-                Files.copy(sourceFile, targetPath, StandardCopyOption.COPY_ATTRIBUTES);
-                log("Copied: " + sourceFile + " -> " + targetPath);
-                success = true;
-            } catch (IOException ex) { log("Copy failed: " + ex.getMessage()); }
-        } else {
-            try {
-                Files.move(sourceFile, targetPath);
-                log("Moved: " + sourceFile + " -> " + targetPath);
-                success = true;
-            } catch (IOException ex) { log("Move failed: " + ex.getMessage()); }
+        try {
+            transferService.transfer(sourceFile, targetPath, copyMode);
+            log((copyMode ? "Copied: " : "Moved: ") + sourceFile + " -> " + targetPath);
+            success = true;
+        } catch (IOException ex) {
+            operationFailed = true;
+            log((copyMode ? "Copy failed: " : "Move failed: ") + ex.getMessage());
         }
         if (!success) return;
 
@@ -280,6 +285,7 @@ public class MoveClass implements Runnable {
                     log("Hash OK: " + sourceHash.substring(0, 16) + "...  " + targetPath.getFileName());
                 } else {
                     hashOk = false;
+                    operationFailed = true;
                     log("HASH MISMATCH! " + targetPath.getFileName()
                         + "\n  source: " + sourceHash + "\n  dest:   " + destHash);
                 }
@@ -296,7 +302,7 @@ public class MoveClass implements Runnable {
         if (sourceHash != null) tx.append("  H=").append(sourceHash.substring(0, 16));
         if (destHash != null) tx.append("  D=").append(destHash.substring(0, 16));
         if (!hashOk) tx.append("  ** HASH MISMATCH **");
-        writeTx(tx.toString());
+        writeTransferTx(tx.toString(), op, targetPath);
     }
 
     private void createDestDir(String dirPath) throws IOException {
@@ -322,68 +328,43 @@ public class MoveClass implements Runnable {
                 dest += "/";
                 log("(" + attrs.size() + " bytes, " + year + "-" + month + ")");
             } else {
-                String relative = filePath.substring(source.toString().length());
-                int lastSep = relative.lastIndexOf(File.separatorChar);
-                if (lastSep < 0 && File.separatorChar != '/') lastSep = relative.lastIndexOf('/');
-                String dirPart = (lastSep >= 0) ? relative.substring(0, lastSep + 1) : File.separator;
-                dest = destination + dirPart;
+                Path sourceRoot = source.toAbsolutePath().normalize();
+                Path filePathAbs = fileio.toAbsolutePath().normalize();
+                Path relative = sourceRoot.relativize(filePathAbs);
+                Path parent = relative.getParent();
+                dest = destination.resolve(parent == null ? Paths.get("") : parent).toString();
             }
 
             createDestDir(dest);
             transferFile(fileio, dest);
         } catch (IOException | InterruptedException ex) {
+            operationFailed = true;
             Logger.getLogger(MoveClass.class.getName()).log(Level.SEVERE, "Error processing " + filePath, ex);
         }
     }
 
-    // ---- File listing (iterative walk, depth-limited, no recursive stack overflow) ----
+    // ---- File listing (depth-limited, links skipped) ----
 
     private void listFiles(File dir) {
         if (isStopped()) return;
 
         final Path dstAbs = destination.toAbsolutePath().normalize();
-        final Path srcAbs = dir.toPath().toAbsolutePath().normalize();
-        boolean skipDest = srcAbs.equals(dstAbs) || srcAbs.startsWith(dstAbs) || dstAbs.startsWith(srcAbs);
-
         synchronized (fileAccumulator) { fileAccumulator.clear(); }
 
         try {
-            EnumSet<FileVisitOption> opts = EnumSet.of(FileVisitOption.FOLLOW_LINKS);
-            Files.walkFileTree(dir.toPath(), opts, MAX_DEPTH, new SimpleFileVisitor<Path>() {
-                @Override
-                public FileVisitResult preVisitDirectory(Path dirPath, BasicFileAttributes attrs) {
-                    if (isStopped()) return FileVisitResult.TERMINATE;
-                    if (skipDest) {
-                        Path abs = dirPath.toAbsolutePath().normalize();
-                        if (abs.equals(dstAbs) || abs.startsWith(dstAbs))
-                            return FileVisitResult.SKIP_SUBTREE;
+            List<Path> scanned = DirectoryScanner.scan(dir.toPath(), MAX_DEPTH,
+                (path, reason) -> log("Skipped: " + path + " (" + reason + ")"));
+            synchronized (fileAccumulator) {
+                for (Path file : scanned) {
+                    if (isStopped()) break;
+                    Path absolute = file.toAbsolutePath().normalize();
+                    if (!absolute.equals(dstAbs) && !absolute.startsWith(dstAbs)) {
+                        fileAccumulator.add(file.toString());
                     }
-                    return FileVisitResult.CONTINUE;
                 }
-                @Override
-                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                    if (isStopped()) return FileVisitResult.TERMINATE;
-                    // Skip symlinks that point back to already-visited dirs
-                    if (attrs.isSymbolicLink()) {
-                        try {
-                            Path real = file.toRealPath();
-                            if (real.startsWith(srcAbs) && !real.equals(file)) {
-                                log("Skipping symlink cycle: " + file);
-                                return FileVisitResult.CONTINUE;
-                            }
-                        } catch (IOException e) {
-                            return FileVisitResult.CONTINUE;
-                        }
-                    }
-                    synchronized (fileAccumulator) { fileAccumulator.add(file.toString()); }
-                    return FileVisitResult.CONTINUE;
-                }
-                @Override
-                public FileVisitResult visitFileFailed(Path file, IOException exc) {
-                    return FileVisitResult.CONTINUE;
-                }
-            });
+            }
         } catch (IOException e) {
+            operationFailed = true;
             log("Error walking files: " + e.getMessage());
         }
     }
@@ -394,12 +375,17 @@ public class MoveClass implements Runnable {
     public void run() {
         try {
             log("===== START =====");
+            if (isStopped()) {
+                setProgress("Cancelled");
+                log("===== STOPPED =====");
+                return;
+            }
 
             try {
                 openTxLog();
-                writeTx("# " + txTimestamp() + "  Session start  " + (copyMode ? "COPY" : "MOVE")
-                    + "  from=" + source + "  to=" + destination);
+                txLog.startSession(source, destination);
             } catch (IOException e) {
+                operationFailed = true;
                 log("Warning: could not create transaction log: " + e.getMessage());
             }
 
@@ -407,27 +393,30 @@ public class MoveClass implements Runnable {
             int totalFiles;
             synchronized (fileAccumulator) { totalFiles = fileAccumulator.size(); }
             log("Found " + totalFiles + " files to process");
+            if (totalFiles == 0) {
+                setProgress("100.0% (0/0)");
+            }
 
             int processed = 0;
             synchronized (fileAccumulator) {
                 for (String f : fileAccumulator) {
                     if (isStopped()) {
+                        setProgress("Cancelled (" + processed + "/" + totalFiles + ")");
                         log("===== STOPPED =====");
-                        if (txWriter != null) {
-                            writeTx("# " + txTimestamp() + "  *** STOPPED ***");
-                        }
+                        if (txLog != null) writeTx("# " + txTimestamp() + "  *** STOPPED ***");
                         return;
                     }
                     processFile(f);
                     processed++;
-                    double pct = ((double) processed / totalFiles) * 100;
-                    progressLabel.setText(String.format("%.1f%% (%d/%d)", pct, processed, totalFiles));
+                    double pct = totalFiles == 0 ? 100.0 : ((double) processed / totalFiles) * 100;
+                    setProgress(String.format("%.1f%% (%d/%d)", pct, processed, totalFiles));
                 }
                 fileAccumulator.clear();
             }
 
             log("===== END =====");
         } catch (Exception ex) {
+            operationFailed = true;
             Logger.getLogger(MoveClass.class.getName()).log(Level.SEVERE, "Fatal error", ex);
         } finally {
             closeTxLog();

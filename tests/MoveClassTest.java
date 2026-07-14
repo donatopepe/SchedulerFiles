@@ -20,6 +20,9 @@ public class MoveClassTest {
             MoveClassTest::testCompareByHash,
             MoveClassTest::testNestedDirectories,
             MoveClassTest::testEmptySourceDirectory,
+            MoveClassTest::testEmptySourceProgress,
+            MoveClassTest::testCancellationProgress,
+            MoveClassTest::testSymbolicLinksSkipped,
             MoveClassTest::testRequestStopDuringOperation,
             MoveClassTest::testSourceEqualsDestination,
             MoveClassTest::testNonexistentSource,
@@ -28,7 +31,8 @@ public class MoveClassTest {
             MoveClassTest::testTransactionLogExists,
             MoveClassTest::testTransactionLogContainsEntries,
             MoveClassTest::testTransactionLogAfterMove,
-            MoveClassTest::testLogOutput
+            MoveClassTest::testLogOutput,
+            MoveClassTest::testTransferErrorReported
         );
     }
 
@@ -267,6 +271,74 @@ public class MoveClassTest {
         }
     }
 
+    static void testEmptySourceProgress() {
+        Path src = null, dst = null;
+        try {
+            src = TestRunner.createTempDir("emptyProgressSrc_");
+            dst = TestRunner.createTempDir("emptyProgressDst_");
+            JLabel progress = new JLabel();
+            MoveClass mc = new MoveClass(src, dst, new JTextArea(), progress,
+                false, false, true, false, false);
+            mc.run();
+            TestRunner.assertEquals("100.0% (0/0)", progress.getText(),
+                "empty source reports complete progress");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        } finally {
+            try { TestRunner.deleteRecursive(src); } catch (IOException ignored) {}
+            try { TestRunner.deleteRecursive(dst); } catch (IOException ignored) {}
+        }
+    }
+
+    static void testCancellationProgress() {
+        Path src = null, dst = null;
+        try {
+            src = TestRunner.createTempDir("cancelProgressSrc_");
+            dst = TestRunner.createTempDir("cancelProgressDst_");
+            Files.write(src.resolve("a.txt"), "a".getBytes());
+            JLabel progress = new JLabel("Not started");
+            MoveClass mc = new MoveClass(src, dst, new JTextArea(), progress,
+                false, false, true, false, false);
+            mc.requestStop();
+            mc.run();
+            TestRunner.assertTrue(progress.getText().contains("Cancelled"),
+                "pre-cancelled operation reports cancellation");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        } finally {
+            try { TestRunner.deleteRecursive(src); } catch (IOException ignored) {}
+            try { TestRunner.deleteRecursive(dst); } catch (IOException ignored) {}
+        }
+    }
+
+    static void testSymbolicLinksSkipped() {
+        Path src = null, dst = null;
+        try {
+            src = TestRunner.createTempDir("linkSrc_");
+            dst = TestRunner.createTempDir("linkDst_");
+            Files.write(src.resolve("real.txt"), "real".getBytes());
+            Path link = src.resolve("linked.txt");
+            try {
+                Files.createSymbolicLink(link, src.resolve("real.txt"));
+            } catch (UnsupportedOperationException | IOException | SecurityException e) {
+                TestRunner.assertTrue(true, "symbolic-link test skipped on unsupported platform");
+                return;
+            }
+            JTextArea log = runMove(src, dst, true, false, false, false, false);
+            TestRunner.assertTrue(Files.exists(dst.resolve("real.txt")),
+                "regular file copied when source contains symlink");
+            TestRunner.assertFalse(Files.exists(dst.resolve("linked.txt")),
+                "symbolic link not copied");
+            TestRunner.assertTrue(log.getText().contains("Skipped:"),
+                "symbolic-link skip reported");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        } finally {
+            try { TestRunner.deleteRecursive(src); } catch (IOException ignored) {}
+            try { TestRunner.deleteRecursive(dst); } catch (IOException ignored) {}
+        }
+    }
+
     static void testRequestStopDuringOperation() {
         try {
             Path tmp = TestRunner.createTempDir("stopTest_");
@@ -456,6 +528,23 @@ public class MoveClassTest {
     }
 
     // ===== LOG OUTPUT =====
+
+    static void testTransferErrorReported() {
+        try {
+            Path tmp = TestRunner.createTempDir("transferError_");
+            TestRunner.createFile(tmp, "file.txt", "content");
+            Path invalidDestination = tmp.resolve("not_a_directory");
+            TestRunner.createFile(tmp, "not_a_directory", "destination file");
+            JTextArea log = new JTextArea();
+            MoveClass mc = new MoveClass(tmp, invalidDestination, log, new JLabel(),
+                false, false, true, false, false);
+            mc.run();
+            TestRunner.assertTrue(mc.hasErrors(), "transfer error is reported");
+            TestRunner.deleteRecursive(tmp);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     static void testLogOutput() {
         try {

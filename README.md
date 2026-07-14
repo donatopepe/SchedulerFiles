@@ -1,60 +1,98 @@
 # SchedulerFiles
 
-A Java Swing application for scheduling file copy and move operations.
+Java Swing and command-line utility for safe file copy/move operations.
 
 ## Features
 
-- Copy or move files from a source directory to a destination directory
-- Preserve source folder hierarchy or organize by year/month/file extension
-- Drag-and-drop support for selecting source/destination paths
-- Scheduling capabilities for automated file transfers
-- File comparison options: by name, by content (byte-by-byte or SHA-256 hash)
-- SHA-256 hash verification for integrity check after copy/move
-- Transaction log (`_files_scheduler.log`) written to destination directory
-
-## Download
-
-Pre-built JAR available from [GitHub Releases](../../releases).
+- Copy or move files between directories
+- Preserve source hierarchy or organize by year/month/extension
+- Drag-and-drop and directory browser in Swing UI
+- Compare by name, bytes, or SHA-256
+- Verify SHA-256 after transfer
+- Skip symbolic links, junction-like links, and directory cycles
+- Write `_files_scheduler.log` in destination
+- Cancel running GUI operations
 
 ## Requirements
 
-- Java Runtime Environment (JRE) 8 or later
+- Runtime: JRE 8+
+- Build: JDK 8+ (`--release 8` requires JDK 9+)
+- Bundled dependency: `dist/lib/AbsoluteLayout.jar`
 
-## Build from source
+## Run
+
+### Swing UI
 
 ```bash
-# Compile
-javac -d build/classes -cp "dist/lib/AbsoluteLayout.jar" src/*.java
-
-# Run tests
-javac -d build/classes -cp "build/classes;dist/lib/AbsoluteLayout.jar" tests/*.java
-java -cp "build/classes;dist/lib/AbsoluteLayout.jar" TestRunner
-
-# Package JAR
-mkdir -p build/jar/lib
-cp dist/lib/AbsoluteLayout.jar build/jar/lib/
-cp build/classes/*.class build/jar/
-cd build/jar
-jar cfm ../../dist/SchedulerFiles.jar ../../build/Manifest.txt *.class lib/
-```
-
-Or simply open in NetBeans IDE → Build.
-
-## Usage
-
-```
 java -jar dist/SchedulerFiles.jar
 ```
 
-Or double-click the JAR file.
+### CLI
 
-## ⚠️ Disclaimer
+```bash
+java -cp "dist/SchedulerFiles.jar;dist/lib/AbsoluteLayout.jar" Cli --help
+java -cp "dist/SchedulerFiles.jar;dist/lib/AbsoluteLayout.jar" Cli \
+  --source /path/to/source --dest /path/to/destination --copy --original-tree
+```
 
-**THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.**
+On Linux/macOS, replace classpath separator `;` with `:`.
 
-The author assumes **no responsibility** for any data loss, corruption,
-or damage that may occur from using this software. Always back up your
-data before performing file operations. Use at your own risk.
+Main CLI options:
+
+```text
+--source <dir>       Source directory
+--dest <dir>         Destination directory
+--copy               Copy files (default)
+--move               Move files
+--original-tree      Preserve hierarchy (default)
+--scheduled-tree     Organize by year/month/extension
+--compare-name       Skip matching names
+--compare-content    Skip matching content
+--verify-hash        Verify SHA-256
+--version            Print version
+--help               Print help
+```
+
+## Build and test
+
+### Windows Command Prompt
+
+```bat
+rmdir /s /q build\classes 2>nul
+mkdir build\classes
+javac --release 8 -encoding UTF-8 -cp "dist\lib\AbsoluteLayout.jar" -d build\classes src\*.java tests\*.java
+copy src\about.html build\classes\about.html
+java -Djava.awt.headless=true -cp "build\classes;dist\lib\AbsoluteLayout.jar" TestRunner
+```
+
+### PowerShell
+
+```powershell
+Remove-Item build/classes -Recurse -Force -ErrorAction SilentlyContinue
+New-Item build/classes -ItemType Directory -Force | Out-Null
+javac --release 8 -encoding UTF-8 -cp 'dist/lib/AbsoluteLayout.jar' -d build/classes src/*.java tests/*.java
+Copy-Item src/about.html build/classes/about.html
+java -Djava.awt.headless=true -cp 'build/classes;dist/lib/AbsoluteLayout.jar' TestRunner
+```
+
+### Linux/macOS
+
+```bash
+rm -rf build/classes
+mkdir -p build/classes
+javac --release 8 -encoding UTF-8 \
+  -cp 'dist/lib/AbsoluteLayout.jar' \
+  -d build/classes src/*.java tests/*.java
+cp src/about.html build/classes/about.html
+java -Djava.awt.headless=true \
+  -cp 'build/classes:dist/lib/AbsoluteLayout.jar' TestRunner
+```
+
+NetBeans users can open project and run **Build Project**. CI workflow in `.github/workflows/build.yml` compiles, tests, packages artifacts, and creates releases for `v*` tags.
+
+## Safety
+
+**Software provided "as is", without warranty.** Back up important data before move operations. Author assumes no responsibility for data loss, corruption, or damage.
 
 ## License
 
