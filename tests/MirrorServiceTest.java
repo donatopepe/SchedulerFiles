@@ -11,11 +11,16 @@ public class MirrorServiceTest {
             MirrorServiceTest::testCopiesMissingFiles,
             MirrorServiceTest::testCopiesNestedFiles,
             MirrorServiceTest::testRemovesStaleFiles,
+            MirrorServiceTest::testKeepsStaleFilesWhenRequested,
+            MirrorServiceTest::testImportsReplicaExtras,
+            MirrorServiceTest::testImportThenParity,
             MirrorServiceTest::testRemovesStaleDirectories,
             MirrorServiceTest::testUpdatesChangedFiles,
             MirrorServiceTest::testParityDetectsMissingFile,
             MirrorServiceTest::testParityDetectsChangedFile,
             MirrorServiceTest::testParityAcceptsIdenticalTrees,
+            MirrorServiceTest::testDetectsStaleEntries,
+            MirrorServiceTest::testEmptyTreesHaveParity,
             MirrorServiceTest::testSkipsSymbolicLinks
         );
     }
@@ -54,6 +59,37 @@ public class MirrorServiceTest {
         });
     }
 
+    static void testKeepsStaleFilesWhenRequested() {
+        withDirs((primary, replica) -> {
+            Files.write(replica.resolve("extra.txt"), "extra".getBytes("UTF-8"));
+            new MirrorService().synchronize(primary, replica, false);
+            TestRunner.assertTrue(Files.exists(replica.resolve("extra.txt")),
+                "mirror keeps stale file when deletion disabled");
+        });
+    }
+
+    static void testImportsReplicaExtras() {
+        withDirs((primary, replica) -> {
+            Files.createDirectories(replica.resolve("imported"));
+            Files.write(replica.resolve("imported/file.txt"), "import".getBytes("UTF-8"));
+            new MirrorService().synchronize(primary, replica, false, true);
+            TestRunner.assertEquals("import", new String(
+                Files.readAllBytes(primary.resolve("imported/file.txt")), "UTF-8"),
+                "mirror imports replica extra into primary");
+        });
+    }
+
+    static void testImportThenParity() {
+        withDirs((primary, replica) -> {
+            Files.write(replica.resolve("extra.txt"), "extra".getBytes("UTF-8"));
+            new MirrorService().synchronize(primary, replica, true, true);
+            TestRunner.assertTrue(new MirrorService().isSynchronized(primary, replica),
+                "mirror parity holds after importing extra");
+            TestRunner.assertTrue(Files.exists(primary.resolve("extra.txt")),
+                "imported extra remains in primary");
+        });
+    }
+
     static void testUpdatesChangedFiles() {
         withDirs((primary, replica) -> {
             Files.write(primary.resolve("a.txt"), "new".getBytes("UTF-8"));
@@ -85,6 +121,20 @@ public class MirrorServiceTest {
             Files.write(replica.resolve("a.txt"), "same".getBytes("UTF-8"));
             TestRunner.assertTrue(new MirrorService().isSynchronized(primary, replica), "parity accepts identical trees");
         });
+    }
+
+    static void testDetectsStaleEntries() {
+        withDirs((primary, replica) -> {
+            Files.write(replica.resolve("extra.txt"), "extra".getBytes("UTF-8"));
+            TestRunner.assertTrue(new MirrorService().hasStaleEntries(primary, replica),
+                "mirror detects stale entry");
+        });
+    }
+
+    static void testEmptyTreesHaveParity() {
+        withDirs((primary, replica) -> TestRunner.assertTrue(
+            new MirrorService().isSynchronized(primary, replica),
+            "empty trees have parity"));
     }
 
     static void testSkipsSymbolicLinks() {

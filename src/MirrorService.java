@@ -56,18 +56,25 @@ public final class MirrorService {
                 return FileVisitResult.CONTINUE;
             }
         });
-        if (!isSynchronized(primary, replica)) {
+        if (!isSynchronized(primary, replica, removeStaleEntries || copyReplicaExtras)) {
             throw new IOException("mirror parity check failed");
         }
     }
 
     public boolean isSynchronized(Path primary, Path replica) throws IOException {
+        return isSynchronized(primary, replica, true);
+    }
+
+    private boolean isSynchronized(Path primary, Path replica, boolean requireSameFiles)
+            throws IOException {
         Set<Path> primaryFiles = files(primary);
         Set<Path> replicaFiles = files(replica);
-        if (!primaryFiles.equals(replicaFiles)) return false;
+        if (requireSameFiles && !primaryFiles.equals(replicaFiles)) return false;
         for (Path relative : primaryFiles) {
+            Path replicaFile = replica.resolve(relative);
+            if (!Files.exists(replicaFile)) return false;
             if (!HashUtil.sha256(primary.resolve(relative)).equals(
-                    HashUtil.sha256(replica.resolve(relative)))) return false;
+                    HashUtil.sha256(replicaFile))) return false;
         }
         return true;
     }

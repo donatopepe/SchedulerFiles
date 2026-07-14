@@ -13,6 +13,9 @@ public class CliTest {
             CliTest::testMissingDestShowsError,
             CliTest::testCreatesDestinationDir,
             CliTest::testSecondDestinationReplication,
+            CliTest::testSecondDestinationStaleWarning,
+            CliTest::testSecondDestinationMirrorDelete,
+            CliTest::testSecondDestinationMirrorImport,
             CliTest::testSecondDestinationMoveRejected,
             CliTest::testSourceEqualsDestError,
             CliTest::testCliOptionsParse,
@@ -122,6 +125,56 @@ public class CliTest {
             try { TestRunner.deleteRecursive(first); } catch (IOException ignored) {}
             try { TestRunner.deleteRecursive(second); } catch (IOException ignored) {}
         }
+    }
+
+    static void testSecondDestinationStaleWarning() {
+        Path source = null, first = null, second = null;
+        try {
+            source = TestRunner.createTempDir("raidWarnSource_");
+            first = TestRunner.createTempDir("raidWarnFirst_");
+            second = TestRunner.createTempDir("raidWarnSecond_");
+            Files.write(second.resolve("old.txt"), "old".getBytes("UTF-8"));
+            Capture capture = runCli("--source", source.toString(), "--dest", first.toString(),
+                "--dest2", second.toString(), "--copy");
+            TestRunner.assertEquals(Cli.EXIT_OK, capture.exit, "stale warning keeps operation successful");
+            TestRunner.assertTrue(capture.out.contains("--mirror-delete"), "stale warning shows delete option");
+            TestRunner.assertTrue(Files.exists(second.resolve("old.txt")), "stale file preserved by default");
+        } catch (Exception e) { throw new RuntimeException(e); }
+        finally { cleanup(source, first, second); }
+    }
+
+    static void testSecondDestinationMirrorDelete() {
+        Path source = null, first = null, second = null;
+        try {
+            source = TestRunner.createTempDir("raidDeleteSource_");
+            first = TestRunner.createTempDir("raidDeleteFirst_");
+            second = TestRunner.createTempDir("raidDeleteSecond_");
+            Files.write(second.resolve("old.txt"), "old".getBytes("UTF-8"));
+            Capture capture = runCli("--source", source.toString(), "--dest", first.toString(),
+                "--dest2", second.toString(), "--copy", "--mirror-delete");
+            TestRunner.assertEquals(Cli.EXIT_OK, capture.exit, "mirror delete succeeds");
+            TestRunner.assertFalse(Files.exists(second.resolve("old.txt")), "mirror delete removes stale file");
+        } catch (Exception e) { throw new RuntimeException(e); }
+        finally { cleanup(source, first, second); }
+    }
+
+    static void testSecondDestinationMirrorImport() {
+        Path source = null, first = null, second = null;
+        try {
+            source = TestRunner.createTempDir("raidImportSource_");
+            first = TestRunner.createTempDir("raidImportFirst_");
+            second = TestRunner.createTempDir("raidImportSecond_");
+            Files.write(second.resolve("extra.txt"), "extra".getBytes("UTF-8"));
+            Capture capture = runCli("--source", source.toString(), "--dest", first.toString(),
+                "--dest2", second.toString(), "--copy", "--mirror-import");
+            TestRunner.assertEquals(Cli.EXIT_OK, capture.exit, "mirror import succeeds");
+            TestRunner.assertTrue(Files.exists(first.resolve("extra.txt")), "mirror import copies extra to primary");
+        } catch (Exception e) { throw new RuntimeException(e); }
+        finally { cleanup(source, first, second); }
+    }
+
+    private static void cleanup(Path... paths) {
+        for (Path path : paths) try { TestRunner.deleteRecursive(path); } catch (Exception ignored) { }
     }
 
     static void testSecondDestinationMoveRejected() {
