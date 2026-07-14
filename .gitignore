@@ -12,3 +12,7 @@ build/
 
 # Pi agent lock file
 .pi-loop.json.lock
+
+# SchedulerFiles runtime logs
+SchedulerFiles*.log
+SchedulerFiles*.log.lck

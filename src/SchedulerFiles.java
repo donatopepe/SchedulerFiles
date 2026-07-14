@@ -87,8 +87,7 @@ public class SchedulerFiles extends javax.swing.JFrame {
 
         // Verify hash checkbox
         verifyHash.setFont(new java.awt.Font("Arial", 0, 12));
-        verifyHash.setBounds(400, 160, 160, 25);
-        getContentPane().add(verifyHash, 0);
+        getContentPane().add(verifyHash, new org.netbeans.lib.awtextra.AbsoluteConstraints(400, 160, 160, 25));
 
         // Browse buttons
         addBrowseButtons();
@@ -105,15 +104,13 @@ public class SchedulerFiles extends javax.swing.JFrame {
     private void addBrowseButtons() {
         javax.swing.JButton btnSrc = new javax.swing.JButton("Browse");
         btnSrc.setFont(new java.awt.Font("Arial", 0, 12));
-        btnSrc.setBounds(630, 20, 80, 25);
         btnSrc.addActionListener(e -> chooseDirectory(SourcePath));
-        getContentPane().add(btnSrc, 0);
+        getContentPane().add(btnSrc, new org.netbeans.lib.awtextra.AbsoluteConstraints(630, 20, 80, 25));
 
         javax.swing.JButton btnDst = new javax.swing.JButton("Browse");
         btnDst.setFont(new java.awt.Font("Arial", 0, 12));
-        btnDst.setBounds(630, 50, 80, 25);
         btnDst.addActionListener(e -> chooseDirectory(DestinationPath));
-        getContentPane().add(btnDst, 0);
+        getContentPane().add(btnDst, new org.netbeans.lib.awtextra.AbsoluteConstraints(630, 50, 80, 25));
     }
 
     private void chooseDirectory(javax.swing.JTextField targetField) {
