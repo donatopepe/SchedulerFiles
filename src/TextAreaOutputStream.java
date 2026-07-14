@@ -14,13 +14,13 @@ public class TextAreaOutputStream extends OutputStream {
     }
 
     @Override
-    public void flush() throws IOException {
+    public synchronized void flush() throws IOException {
         textArea.append(buffer.toString("UTF-8"));
         buffer.reset();
     }
 
     @Override
-    public void write(int b) throws IOException {
+    public synchronized void write(int b) throws IOException {
         buffer.write(b);
     }
 }

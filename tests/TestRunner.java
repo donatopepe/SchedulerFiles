@@ -12,9 +12,9 @@ import java.util.stream.*;
  */
 public class TestRunner {
 
-    private static int passed = 0;
-    private static int failed = 0;
-    private static final List<String> failures = new ArrayList<>();
+    private static java.util.concurrent.atomic.AtomicInteger passed = new java.util.concurrent.atomic.AtomicInteger();
+    private static java.util.concurrent.atomic.AtomicInteger failed = new java.util.concurrent.atomic.AtomicInteger();
+    private static final List<String> failures = java.util.Collections.synchronizedList(new ArrayList<>());
 
     public static void assertEquals(Object expected, Object actual, String msg) {
         if (!Objects.equals(expected, actual)) {
@@ -54,12 +54,12 @@ public class TestRunner {
     }
 
     private static void pass(String msg) {
-        passed++;
+        passed.incrementAndGet();
         System.out.println("  PASS  " + msg);
     }
 
     private static void fail(String msg) {
-        failed++;
+        failed.incrementAndGet();
         failures.add(msg);
         System.err.println("  FAIL  " + msg);
     }
@@ -141,15 +141,16 @@ public class TestRunner {
         runTestClass(MoveClassTest.class);
         runTestClass(UpdaterTest.class);
 
+        int p = passed.get(), f = failed.get();
         System.out.println("\n============================================");
-        System.out.println("  Results: " + (passed + failed) + " tests, "
-                           + passed + " passed, " + failed + " failed");
+        System.out.println("  Results: " + (p + f) + " tests, "
+                           + p + " passed, " + f + " failed");
         System.out.println("============================================");
 
         if (!failures.isEmpty()) {
             System.out.println("\nFailures:");
-            for (String f : failures) {
-                System.out.println("  - " + f);
+            for (String failMsg : failures) {
+                System.out.println("  - " + failMsg);
             }
             System.exit(1);
         }

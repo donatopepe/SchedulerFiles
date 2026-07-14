@@ -1,8 +1,10 @@
 # Java compiled classes
 *.class
 
-# JAR files (source jars not tracked)
+# JAR dependencies (but not our dist JAR)
 *.jar
+!dist/SchedulerFiles.jar
+!dist/lib/*.jar
 
 # NetBeans project - private settings
 nbproject/private/
