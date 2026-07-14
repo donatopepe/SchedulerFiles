@@ -233,12 +233,12 @@ public class SchedulerFiles extends javax.swing.JFrame {
         developer.setFont(new java.awt.Font("Arial", 0, 12)); // NOI18N
         developer.setForeground(new java.awt.Color(0, 0, 204));
         developer.setText("Donate to developer");
-        getContentPane().add(developer, new org.netbeans.lib.awtextra.AbsoluteConstraints(400, 420, -1, -1));
+        getContentPane().add(developer, new org.netbeans.lib.awtextra.AbsoluteConstraints(400, 430, -1, -1));
 
         info.setFont(new java.awt.Font("Arial", 0, 12)); // NOI18N
         info.setForeground(new java.awt.Color(0, 0, 204));
         info.setText("Info");
-        getContentPane().add(info, new org.netbeans.lib.awtextra.AbsoluteConstraints(10, 420, -1, -1));
+        getContentPane().add(info, new org.netbeans.lib.awtextra.AbsoluteConstraints(10, 430, -1, -1));
 
         avanzamento.setFont(new java.awt.Font("Arial", 0, 12)); // NOI18N
         avanzamento.setText(" ");
