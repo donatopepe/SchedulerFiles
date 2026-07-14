@@ -59,6 +59,15 @@ Nota: `javac -cp` deve usare `dist/lib/AbsoluteLayout.jar`, non `src/lib`.
 - [x] Aggiornare guida CLI/GUI per replica twin.
 - [x] Evolvere replica a sincronizzazione mirror con rimozione stale e verifica parity SHA-256.
 
+## Evoluzione RAID-1 e affidabilità
+
+- [ ] Copia atomica per file: temp, hash, rename.
+- [ ] Manifest mirror con percorso, dimensione, SHA-256 e stato.
+- [ ] Recovery mirror da manifest dopo interruzione.
+- [ ] Gestione conflitti durante `--mirror-import`.
+- [ ] Lock esclusivo sulle destinazioni.
+- [ ] Test recovery, conflitti e copia atomica.
+
 ## Ottimizzazioni performance
 
 - [x] Indicizzare destinazione una volta per operazione, evitando `listFiles()` per ogni file.

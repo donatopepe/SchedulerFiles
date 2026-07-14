@@ -21,7 +21,8 @@ public class MirrorServiceTest {
             MirrorServiceTest::testParityAcceptsIdenticalTrees,
             MirrorServiceTest::testDetectsStaleEntries,
             MirrorServiceTest::testEmptyTreesHaveParity,
-            MirrorServiceTest::testSkipsSymbolicLinks
+            MirrorServiceTest::testSkipsSymbolicLinks,
+            MirrorServiceTest::testAtomicCopyLeavesNoTempFiles
         );
     }
 
@@ -148,6 +149,20 @@ public class MirrorServiceTest {
             }
             new MirrorService().synchronize(primary, replica);
             TestRunner.assertFalse(Files.exists(replica.resolve("link.txt")), "mirror skips symbolic link");
+        });
+    }
+
+    static void testAtomicCopyLeavesNoTempFiles() {
+        withDirs((primary, replica) -> {
+            Path source = primary.resolve("atomic.txt");
+            Path target = replica.resolve("atomic.txt");
+            Files.write(source, "atomic".getBytes("UTF-8"));
+            AtomicFileTransfer.copy(source, target);
+            TestRunner.assertEquals("atomic", new String(Files.readAllBytes(target), "UTF-8"),
+                "atomic copy publishes complete content");
+            try (java.nio.file.DirectoryStream<Path> stream = Files.newDirectoryStream(replica, ".*.tmp-*")) {
+                TestRunner.assertFalse(stream.iterator().hasNext(), "atomic copy removes temporary files");
+            }
         });
     }
 

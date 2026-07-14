@@ -8,7 +8,7 @@ public final class TransferService {
 
     public Path transfer(Path source, Path target, boolean copyMode) throws IOException {
         if (copyMode) {
-            return Files.copy(source, target, StandardCopyOption.COPY_ATTRIBUTES);
+            return AtomicFileTransfer.copy(source, target);
         }
         return Files.move(source, target);
     }
