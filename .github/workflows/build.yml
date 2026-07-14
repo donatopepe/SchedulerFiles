@@ -42,8 +42,8 @@ jobs:
           cp build/classes/about.html build/classes/about-en.html build/jar/
           mkdir -p build/jar/icon
           cp build/classes/icon/schedulerfiles.png build/classes/icon/schedulerfiles.ico build/jar/icon/
-          jar --create --file "$GITHUB_WORKSPACE/dist/SchedulerFiles.jar" \
-            --manifest "$GITHUB_WORKSPACE/build/Manifest.txt" \
+          jar cfm "$GITHUB_WORKSPACE/dist/SchedulerFiles.jar" \
+            "$GITHUB_WORKSPACE/build/Manifest.txt" \
             -C "$GITHUB_WORKSPACE/build/jar" .
           test -s "$GITHUB_WORKSPACE/dist/SchedulerFiles.jar"
 
