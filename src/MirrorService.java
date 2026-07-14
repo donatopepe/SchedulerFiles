@@ -25,6 +25,13 @@ public final class MirrorService {
     }
 
     public void synchronize(Path primary, Path replica, boolean removeStaleEntries) throws IOException {
+        synchronize(primary, replica, removeStaleEntries, false);
+    }
+
+    /** Synchronizes mirror; copyReplicaExtras copies Dest 2 extras into primary. */
+    public void synchronize(Path primary, Path replica, boolean removeStaleEntries,
+                            boolean copyReplicaExtras) throws IOException {
+        if (copyReplicaExtras) copyExtrasToPrimary(primary, replica);
         if (removeStaleEntries) removeStale(primary, replica);
         Files.walkFileTree(primary, new SimpleFileVisitor<Path>() {
             @Override
@@ -63,6 +70,20 @@ public final class MirrorService {
                     HashUtil.sha256(replica.resolve(relative)))) return false;
         }
         return true;
+    }
+
+    private void copyExtrasToPrimary(Path primary, Path replica) throws IOException {
+        Set<Path> primaryFiles = files(primary);
+        Set<Path> replicaFiles = files(replica);
+        for (Path relative : replicaFiles) {
+            if (!primaryFiles.contains(relative)) {
+                Path source = replica.resolve(relative);
+                Path target = primary.resolve(relative);
+                Files.createDirectories(target.getParent());
+                Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING,
+                    StandardCopyOption.COPY_ATTRIBUTES);
+            }
+        }
     }
 
     private void removeStale(Path primary, Path replica) throws IOException {
