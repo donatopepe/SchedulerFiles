@@ -118,7 +118,7 @@ public class CliTest {
         TestRunner.assertTrue(
             opts.parse(new String[]{"--copy", "--verify-hash", "-s", "/tmp", "-d", "/tmp/out"}),
             "parse known flags returns true");
-        TestRunner.assertTrue(opts.verifyHash, "verifyHash flag parsed");
+        TestRunner.assertTrue(opts.verifyHash, "verifyHash enabled by default");
         TestRunner.assertTrue(opts.copyMode, "copyMode=true (default)");
 
         // Test without source+dest returns false

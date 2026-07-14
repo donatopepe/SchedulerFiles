@@ -8,7 +8,7 @@ Java Swing and command-line utility for safe file copy/move operations.
 - Preserve source hierarchy or organize by year/month/extension
 - Drag-and-drop and directory browser in Swing UI
 - Compare by name, bytes, or SHA-256
-- Verify SHA-256 after transfer
+- Verify SHA-256 after transfer (enabled by default)
 - Skip symbolic links, junction-like links, and directory cycles
 - Write `_files_scheduler.log` in destination
 - Cancel running GUI operations
@@ -16,6 +16,7 @@ Java Swing and command-line utility for safe file copy/move operations.
 ## Requirements
 
 - Runtime: JRE 8+
+- Integrity: SHA-256 is enabled by default; no faster algorithm with comparable collision resistance is available in the standard Java 8 runtime.
 - Build: JDK 8+ (`--release 8` requires JDK 9+)
 - Bundled dependency: `dist/lib/AbsoluteLayout.jar`
 

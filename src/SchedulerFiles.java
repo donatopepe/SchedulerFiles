@@ -91,7 +91,7 @@ public class SchedulerFiles extends javax.swing.JFrame {
         ScheduledTree.setToolTipText("Organize by year / month / file extension");
         comparefile.setToolTipText("Skip files with identical content");
         comparename.setToolTipText("Skip files with the same filename");
-        verifyHash.setToolTipText("Compute SHA-256 hash before and after transfer");
+        verifyHash.setToolTipText("Compute SHA-256 hash before and after transfer (default enabled)");
         SourcePath.getAccessibleContext().setAccessibleName("Source directory");
         DestinationPath.getAccessibleContext().setAccessibleName("Destination directory");
         jButtonScheda.getAccessibleContext().setAccessibleName("Start file transfer");
@@ -116,6 +116,7 @@ public class SchedulerFiles extends javax.swing.JFrame {
 
         // Verify hash inside compare panel (second row)
         verifyHash.setFont(new java.awt.Font("Arial", 0, 12));
+        verifyHash.setSelected(true);
         jPanel1.add(verifyHash, new AbsoluteConstraints(10, 30, -1, -1));
 
         addBrowseButtons();
