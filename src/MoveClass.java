@@ -25,6 +25,18 @@ public class MoveClass implements Runnable {
 
     private static final String TX_LOG_NAME = "_files_scheduler.log";
 
+    /** When true, Logger output is suppressed (used in CLI mode). */
+    private static volatile boolean suppressLogger;
+
+    /** Call before run() to hide Logger console output. */
+    public static void setSuppressLogger(boolean suppress) {
+        suppressLogger = suppress;
+        if (suppress) {
+            java.util.logging.Logger.getLogger(MoveClass.class.getName())
+                .setUseParentHandlers(false);
+        }
+    }
+
     private final Path source;
     private final Path destination;
     private final JTextArea textlog;
@@ -66,7 +78,9 @@ public class MoveClass implements Runnable {
     private void log(String message) {
         textlog.append(message + "\n");
         textlog.setCaretPosition(textlog.getDocument().getLength());
-        Logger.getLogger(MoveClass.class.getName()).info(message);
+        if (!suppressLogger) {
+            Logger.getLogger(MoveClass.class.getName()).info(message);
+        }
     }
 
     // ---- Transaction log ----
@@ -337,6 +351,12 @@ public class MoveClass implements Runnable {
     private void listFiles(File dir) {
         if (isStopped()) return;
 
+        // Never recurse into the destination directory (prevents copying
+        // transaction log or other artifacts into themselves)
+        if (dir.toPath().toAbsolutePath().equals(destination.toAbsolutePath())) {
+            return;
+        }
+
         File[] entries = dir.listFiles();
         if (entries == null) return;
 
@@ -344,7 +364,12 @@ public class MoveClass implements Runnable {
             if (isStopped()) return;
 
             if (entry.isDirectory()) {
-                listFiles(entry);
+                // Skip destination subdirectory if inside source
+                Path entryPath = entry.toPath().toAbsolutePath();
+                if (!entryPath.equals(destination.toAbsolutePath())
+                    && !entryPath.startsWith(destination.toAbsolutePath())) {
+                    listFiles(entry);
+                }
             } else {
                 synchronized (fileAccumulator) {
                     fileAccumulator.add(entry.getPath());
