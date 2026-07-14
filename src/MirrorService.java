@@ -24,6 +24,9 @@ public final class MirrorService {
             @Override
             public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
                     throws IOException {
+                if (Files.isSymbolicLink(file) || !attrs.isRegularFile()) {
+                    return FileVisitResult.CONTINUE;
+                }
                 Path target = replica.resolve(primary.relativize(file));
                 if (!Files.exists(target) || !HashUtil.sha256(file).equals(HashUtil.sha256(target))) {
                     Files.createDirectories(target.getParent());
