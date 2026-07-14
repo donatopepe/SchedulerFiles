@@ -1,26 +1,19 @@
 import java.io.File;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.RandomAccessFile;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.text.SimpleDateFormat;
 import java.util.Calendar;
-import java.util.Date;
-import java.util.EnumSet;
 import java.util.GregorianCalendar;
 import java.util.TreeSet;
-import java.util.logging.FileHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.logging.SimpleFormatter;
 import javax.swing.JLabel;
 import javax.swing.JTextArea;
 
@@ -34,6 +27,7 @@ public class MoveClass implements Runnable {
     private final boolean compareByName;
     private final boolean copyMode;
     private final boolean useScheduledTree;
+    private final boolean verifyHash;
     private final Calendar calendar = new GregorianCalendar();
     private volatile boolean stopRequested;
 
@@ -41,7 +35,7 @@ public class MoveClass implements Runnable {
 
     public MoveClass(Path source, Path destination, JTextArea textlog, JLabel progressLabel,
                      boolean compareByContent, boolean compareByName, boolean copyMode,
-                     boolean useScheduledTree) {
+                     boolean useScheduledTree, boolean verifyHash) {
         this.source = source;
         this.destination = destination;
         this.textlog = textlog;
@@ -50,6 +44,7 @@ public class MoveClass implements Runnable {
         this.compareByName = compareByName;
         this.copyMode = copyMode;
         this.useScheduledTree = useScheduledTree;
+        this.verifyHash = verifyHash;
         this.stopRequested = false;
     }
 
@@ -62,6 +57,8 @@ public class MoveClass implements Runnable {
     }
 
     private void log(String message) {
+        textlog.append(message + "\n");
+        textlog.setCaretPosition(textlog.getDocument().getLength());
         Logger.getLogger(MoveClass.class.getName()).info(message);
     }
 
@@ -111,7 +108,7 @@ public class MoveClass implements Runnable {
         }
     }
 
-    // ---- File move/copy ----
+    // ---- File move/copy with hash verification ----
 
     private void transferFile(Path sourceFile, String destDir) throws IOException, InterruptedException {
         String name = sourceFile.getFileName().toString();
@@ -162,12 +159,24 @@ public class MoveClass implements Runnable {
             targetPath = Paths.get(destDir + baseName + suffix + ext);
         }
 
+        // Compute source hash before operation (if verifyHash enabled)
+        String sourceHash = null;
+        if (verifyHash) {
+            try {
+                sourceHash = HashUtil.sha256(sourceFile);
+            } catch (Exception e) {
+                log("Warning: could not hash source " + sourceFile + ": " + e.getMessage());
+            }
+        }
+
+        // Perform copy or move
         if (copyMode) {
             try {
                 Files.copy(sourceFile, targetPath, StandardCopyOption.COPY_ATTRIBUTES);
                 log("Copied: " + sourceFile + " -> " + targetPath);
             } catch (IOException ex) {
                 log("Copy failed: " + ex.getMessage());
+                return;
             }
         } else {
             try {
@@ -175,6 +184,23 @@ public class MoveClass implements Runnable {
                 log("Moved: " + sourceFile + " -> " + targetPath);
             } catch (IOException ex) {
                 log("Move failed: " + ex.getMessage());
+                return;
+            }
+        }
+
+        // Verify hash on destination
+        if (verifyHash && sourceHash != null) {
+            try {
+                String destHash = HashUtil.sha256(targetPath);
+                if (sourceHash.equals(destHash)) {
+                    log("Hash OK: " + sourceHash.substring(0, 16) + "...  " + targetPath.getFileName());
+                } else {
+                    log("HASH MISMATCH! " + targetPath.getFileName()
+                        + "\n  source: " + sourceHash
+                        + "\n  dest:   " + destHash);
+                }
+            } catch (Exception e) {
+                log("Warning: could not hash destination " + targetPath + ": " + e.getMessage());
             }
         }
     }
@@ -205,8 +231,12 @@ public class MoveClass implements Runnable {
                 dest += "/";
                 log("(" + attrs.size() + " bytes, " + year + "-" + month + ")");
             } else {
-                String pathFromSource = filePath.substring(source.toString().length());
-                dest = destination.toString() + pathFromSource;
+                // Keep original tree structure: dest + relative directory (without filename)
+                String relative = filePath.substring(source.toString().length());
+                int lastSep = relative.lastIndexOf("/");
+                if (lastSep < 0) lastSep = relative.lastIndexOf("\\");
+                String dirPart = (lastSep >= 0) ? relative.substring(0, lastSep + 1) : "/";
+                dest = destination.toString() + dirPart;
             }
 
             ensureDirExists(dest);
@@ -245,7 +275,6 @@ public class MoveClass implements Runnable {
             textlog.setText("");
             log("===== START =====");
 
-            // Collect all files
             synchronized (fileAccumulator) {
                 fileAccumulator.clear();
             }
@@ -256,7 +285,6 @@ public class MoveClass implements Runnable {
             }
             log("Found " + totalFiles + " files to process");
 
-            // Process each file
             int processed = 0;
             synchronized (fileAccumulator) {
                 for (String f : fileAccumulator) {
@@ -276,7 +304,6 @@ public class MoveClass implements Runnable {
         } catch (Exception ex) {
             Logger.getLogger(MoveClass.class.getName()).log(Level.SEVERE, "Fatal error", ex);
         } finally {
-            // Close logger handlers
             Logger log = Logger.getLogger(MoveClass.class.getName());
             for (Handler h : log.getHandlers()) {
                 h.close();

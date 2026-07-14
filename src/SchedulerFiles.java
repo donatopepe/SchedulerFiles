@@ -28,6 +28,7 @@ public class SchedulerFiles extends javax.swing.JFrame {
 
     private final String address = "dnt.ppe@gmail.com";
     private final String paypalme = "https://www.paypal.me/DonatoPepe";
+    private final javax.swing.JCheckBox verifyHash = new javax.swing.JCheckBox("Verify SHA-256");
     private Thread workerThread;
     private MoveClass currentTask;
 
@@ -83,6 +84,11 @@ public class SchedulerFiles extends javax.swing.JFrame {
 
         // Drag & drop
         connectToDragDrop();
+
+        // Verify hash checkbox
+        verifyHash.setFont(new java.awt.Font("Arial", 0, 12));
+        verifyHash.setBounds(400, 160, 160, 25);
+        getContentPane().add(verifyHash, 0);
 
         // Browse buttons
         addBrowseButtons();
@@ -342,7 +348,8 @@ public class SchedulerFiles extends javax.swing.JFrame {
         currentTask = new MoveClass(
             source, destination, jTextLog, avanzamento,
             comparefile.isSelected(), comparename.isSelected(),
-            jCheckBoxCopia.isSelected(), ScheduledTree.isSelected()
+            jCheckBoxCopia.isSelected(), ScheduledTree.isSelected(),
+            verifyHash.isSelected()
         );
 
         workerThread = new Thread(currentTask);

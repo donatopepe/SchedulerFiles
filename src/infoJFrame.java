@@ -1,20 +1,3 @@
-/*
- * Copyright (C) 2020 Donato
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
 public class infoJFrame extends javax.swing.JFrame {
 
     public infoJFrame() {
@@ -46,7 +29,7 @@ public class infoJFrame extends javax.swing.JFrame {
                 + "Drag & drop folders onto the text fields or use the Browse\n"
                 + "buttons to select them.\n\n"
                 + "Copyright (C) 2020 Donato Pepe\n"
-                + "License: GNU GPL v3 or later");
+                + "License: Free - do what you want");
         jScrollPane1.setViewportView(jTextArea1);
 
         getContentPane().add(jScrollPane1, java.awt.BorderLayout.CENTER);
