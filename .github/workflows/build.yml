@@ -19,14 +19,14 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Compile sources
+      - name: Compile sources (Java 8 target)
         run: |
           mkdir -p build/classes
-          javac -d build/classes -cp "dist/lib/AbsoluteLayout.jar" src/*.java
+          javac --release 8 -d build/classes -cp "dist/lib/AbsoluteLayout.jar" src/*.java
 
       - name: Compile tests
         run: |
-          javac -d build/classes -cp "build/classes:dist/lib/AbsoluteLayout.jar" tests/*.java
+          javac --release 8 -d build/classes -cp "build/classes:dist/lib/AbsoluteLayout.jar" tests/*.java
 
       - name: Run tests
         run: java -cp "build/classes:dist/lib/AbsoluteLayout.jar" TestRunner
