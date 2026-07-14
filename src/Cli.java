@@ -104,7 +104,7 @@ public class Cli {
                     dummyLog.append("Warning: second destination contains extra files.\n");
                     dummyLog.append("Use --mirror-delete to remove them.\n");
                 }
-                mirror.synchronize(dest, dest2, opts.mirrorDelete);
+                mirror.synchronize(dest, dest2, opts.mirrorDelete, opts.mirrorImport);
                 dummyLog.append("RAID-1 parity verified: destinations synchronized\n");
             } catch (IOException e) {
                 failed = true;
@@ -152,7 +152,8 @@ public class Cli {
         out.println("  -s, --source <path>        Source directory");
         out.println("  -d, --dest <path>          Primary destination directory");
         out.println("      --dest2 <path>         Second destination (RAID-1 copy mode)");
-        out.println("      --mirror-delete        Delete extra files in Dest 2 after confirmation");
+        out.println("      --mirror-delete        Delete extra files in Dest 2");
+        out.println("      --mirror-import        Copy extra Dest 2 files into Dest");
         out.println();
         out.println("Mode (default: copy):");
         out.println("  -c, --copy                 Copy files (preserve originals)");
@@ -189,6 +190,7 @@ public class Cli {
         boolean compareContent;
         boolean verifyHash = true;
         boolean mirrorDelete;
+        boolean mirrorImport;
         boolean help;
         boolean showVersion;
 
@@ -220,6 +222,9 @@ public class Cli {
                         break;
                     case "--mirror-delete":
                         mirrorDelete = true;
+                        break;
+                    case "--mirror-import":
+                        mirrorImport = true;
                         break;
                     case "-c":
                     case "--copy":

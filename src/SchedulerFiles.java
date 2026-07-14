@@ -399,18 +399,20 @@ public class SchedulerFiles extends javax.swing.JFrame {
 
         final String secondPath = secondDestinationPath.getText().trim();
         final boolean[] mirrorDelete = {false};
+        final boolean[] mirrorCopyToPrimary = {false};
         if (!secondPath.isEmpty()) {
             try {
                 Path primary = Paths.get(DestinationPath.getText());
                 Path replica = Paths.get(secondPath);
                 if (new MirrorService().hasStaleEntries(primary, replica)) {
-                    Object[] choices = {"Delete extras", "Keep extras", "Cancel"};
+                    Object[] choices = {"Delete extras", "Copy to Dest", "Keep extras", "Cancel"};
                     int choice = JOptionPane.showOptionDialog(this,
                         "Dest 2 contains files not present in Dest.\nWhat should synchronization do?",
                         "Mirror synchronization", JOptionPane.DEFAULT_OPTION,
                         JOptionPane.WARNING_MESSAGE, null, choices, choices[1]);
-                    if (choice == 2 || choice == JOptionPane.CLOSED_OPTION) return;
+                    if (choice == 3 || choice == JOptionPane.CLOSED_OPTION) return;
                     mirrorDelete[0] = choice == 0;
+                    mirrorCopyToPrimary[0] = choice == 1;
                 }
             } catch (IOException e) {
                 jTextLog.setText("Error checking Dest 2: " + e.getMessage());
@@ -446,7 +448,7 @@ public class SchedulerFiles extends javax.swing.JFrame {
             if (!currentTask.hasErrors() && !currentTask.isCancelled() && !secondPath.isEmpty()) {
                 try {
                     new MirrorService().synchronize(Paths.get(DestinationPath.getText()),
-                        Paths.get(secondPath), mirrorDelete[0]);
+                        Paths.get(secondPath), mirrorDelete[0], mirrorCopyToPrimary[0]);
                     jTextLog.append("Twin destinations synchronized and parity verified.\n");
                 } catch (IOException e) {
                     jTextLog.append("Twin destination parity failed: " + e.getMessage() + "\n");
