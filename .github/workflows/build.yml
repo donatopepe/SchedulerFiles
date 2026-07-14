@@ -38,7 +38,7 @@ jobs:
         run: |
           set -euxo pipefail
           mkdir -p build/jar/lib
-          cp dist/lib/AbsoluteLayout.jar build/jar/lib/
+          (cd build/jar && jar xf "$GITHUB_WORKSPACE/dist/lib/AbsoluteLayout.jar")
           find build/classes -maxdepth 1 -name '*.class' ! -name '*Test*.class' -exec cp {} build/jar/ \;
           cp build/classes/about.html build/classes/about-en.html build/jar/
           mkdir -p build/jar/icon
