@@ -12,6 +12,8 @@ public class CliTest {
             CliTest::testMissingSourceShowsError,
             CliTest::testMissingDestShowsError,
             CliTest::testCreatesDestinationDir,
+            CliTest::testSecondDestinationReplication,
+            CliTest::testSecondDestinationMoveRejected,
             CliTest::testSourceEqualsDestError,
             CliTest::testCliOptionsParse,
             CliTest::testSuppressLogger
@@ -96,6 +98,50 @@ public class CliTest {
             TestRunner.deleteRecursive(tmp);
         } catch (Exception e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    static void testSecondDestinationReplication() {
+        Path source = null, first = null, second = null;
+        try {
+            source = TestRunner.createTempDir("raidSource_");
+            first = TestRunner.createTempDir("raidFirst_");
+            second = TestRunner.createTempDir("raidSecond_");
+            Files.write(source.resolve("replica.txt"), "replicated".getBytes("UTF-8"));
+            Capture capture = runCli("--source", source.toString(), "--dest", first.toString(),
+                "--dest2", second.toString(), "--copy");
+            TestRunner.assertEquals(Cli.EXIT_OK, capture.exit, "dest2 replication succeeds");
+            TestRunner.assertTrue(Files.exists(first.resolve("replica.txt")),
+                "primary destination contains replica");
+            TestRunner.assertTrue(Files.exists(second.resolve("replica.txt")),
+                "secondary destination contains replica");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        } finally {
+            try { TestRunner.deleteRecursive(source); } catch (IOException ignored) {}
+            try { TestRunner.deleteRecursive(first); } catch (IOException ignored) {}
+            try { TestRunner.deleteRecursive(second); } catch (IOException ignored) {}
+        }
+    }
+
+    static void testSecondDestinationMoveRejected() {
+        Path source = null, first = null, second = null;
+        try {
+            source = TestRunner.createTempDir("raidMoveSource_");
+            first = TestRunner.createTempDir("raidMoveFirst_");
+            second = TestRunner.createTempDir("raidMoveSecond_");
+            Capture capture = runCli("--source", source.toString(), "--dest", first.toString(),
+                "--dest2", second.toString(), "--move");
+            TestRunner.assertEquals(Cli.EXIT_ERROR, capture.exit,
+                "dest2 rejects move mode");
+            TestRunner.assertTrue(capture.err.contains("requires --copy"),
+                "dest2 move error explains copy requirement");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        } finally {
+            try { TestRunner.deleteRecursive(source); } catch (IOException ignored) {}
+            try { TestRunner.deleteRecursive(first); } catch (IOException ignored) {}
+            try { TestRunner.deleteRecursive(second); } catch (IOException ignored) {}
         }
     }
 

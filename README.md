@@ -12,6 +12,7 @@ Java Swing and command-line utility for safe file copy/move operations.
 - Skip symbolic links, junction-like links, and directory cycles
 - Write `_files_scheduler.log` in destination
 - Cancel running GUI operations
+- Optional two-destination copy (software RAID-1 style replication in CLI)
 
 ## Requirements
 
@@ -34,6 +35,10 @@ java -jar dist/SchedulerFiles.jar
 java -cp "dist/SchedulerFiles.jar;dist/lib/AbsoluteLayout.jar" Cli --help
 java -cp "dist/SchedulerFiles.jar;dist/lib/AbsoluteLayout.jar" Cli \
   --source /path/to/source --dest /path/to/destination --copy --original-tree
+
+# Replicate every file to two destinations (copy mode only)
+java -cp "dist/SchedulerFiles.jar;dist/lib/AbsoluteLayout.jar" Cli \
+  --source /path/to/source --dest /path/to/destination-a --dest2 /path/to/destination-b --copy
 ```
 
 On Linux/macOS, replace classpath separator `;` with `:`.
@@ -42,7 +47,8 @@ Main CLI options:
 
 ```text
 --source <dir>       Source directory
---dest <dir>         Destination directory
+--dest <dir>         Primary destination directory
+--dest2 <dir>        Optional second destination (RAID-1 copy mode)
 --copy               Copy files (default)
 --move               Move files
 --original-tree      Preserve hierarchy (default)

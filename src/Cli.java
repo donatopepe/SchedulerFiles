@@ -3,6 +3,9 @@ import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.FileVisitResult;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import javax.swing.JLabel;
 import javax.swing.JTextArea;
 
@@ -50,6 +53,11 @@ public class Cli {
             return EXIT_ERROR;
         }
         Path dest = Paths.get(opts.dest);
+        Path dest2 = opts.dest2 == null ? null : Paths.get(opts.dest2);
+        if (dest2 != null && !opts.copyMode) {
+            System.err.println("Error: --dest2 requires --copy; move cannot replicate source twice safely");
+            return EXIT_ERROR;
+        }
         if (!Files.isDirectory(dest)) {
             // Create destination directory if it doesn't exist (consistent with GUI)
             try {
@@ -60,9 +68,20 @@ public class Cli {
                 return EXIT_ERROR;
             }
         }
-        if (source.toAbsolutePath().equals(dest.toAbsolutePath())) {
-            System.err.println("Error: source and destination must be different directories");
+        if (source.toAbsolutePath().equals(dest.toAbsolutePath())
+                || (dest2 != null && source.toAbsolutePath().equals(dest2.toAbsolutePath()))
+                || (dest2 != null && dest.toAbsolutePath().equals(dest2.toAbsolutePath()))) {
+            System.err.println("Error: source and destinations must be different directories");
             return EXIT_ERROR;
+        }
+        if (dest2 != null && !Files.isDirectory(dest2)) {
+            try {
+                Files.createDirectories(dest2);
+                System.out.println("Created second destination directory: " + dest2);
+            } catch (IOException e) {
+                System.err.println("Error: could not create second destination directory: " + dest2);
+                return EXIT_ERROR;
+            }
         }
 
         // Run headless (suppress Logger console output)
@@ -76,11 +95,51 @@ public class Cli {
             opts.copyMode, opts.scheduledTree, opts.verifyHash
         );
         mc.run();
+        boolean failed = mc.hasErrors();
+        if (dest2 != null && !mc.isCancelled() && !failed) {
+            dummyLog.append("===== SECOND DESTINATION =====\n");
+            MoveClass replica = new MoveClass(
+                source, dest2, dummyLog, dummyProgress,
+                opts.compareContent, opts.compareName,
+                true, opts.scheduledTree, opts.verifyHash);
+            replica.run();
+            failed = replica.hasErrors();
+            if (!failed) {
+                try {
+                    removeStaleEntries(dest, dest2);
+                } catch (IOException e) {
+                    failed = true;
+                    dummyLog.append("RAID-1 cleanup failed: " + e.getMessage() + "\n");
+                }
+            }
+            if (failed) dummyLog.append("RAID-1 replication incomplete: destinations differ\n");
+            else dummyLog.append("RAID-1 replication complete: destinations synchronized\n");
+        }
 
         // Print log to stdout
         System.out.print(dummyLog.getText());
         if (mc.isCancelled()) return EXIT_CANCELLED;
-        return mc.hasErrors() ? EXIT_ERROR : EXIT_OK;
+        return failed ? EXIT_ERROR : EXIT_OK;
+    }
+
+    private static void removeStaleEntries(final Path primary, Path replica) throws IOException {
+        Files.walkFileTree(replica, new SimpleFileVisitor<Path>() {
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                Path relative = replica.relativize(file);
+                if (!Files.exists(primary.resolve(relative))) Files.deleteIfExists(file);
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult postVisitDirectory(Path dir, IOException error) throws IOException {
+                if (error != null) throw error;
+                if (!dir.equals(replica) && !Files.exists(primary.resolve(replica.relativize(dir)))) {
+                    Files.deleteIfExists(dir);
+                }
+                return FileVisitResult.CONTINUE;
+            }
+        });
     }
 
     static void printUsage(PrintStream out) {
@@ -92,7 +151,8 @@ public class Cli {
         out.println();
         out.println("Required:");
         out.println("  -s, --source <path>        Source directory");
-        out.println("  -d, --dest <path>          Destination directory");
+        out.println("  -d, --dest <path>          Primary destination directory");
+        out.println("      --dest2 <path>         Second destination (RAID-1 copy mode)");
         out.println();
         out.println("Mode (default: copy):");
         out.println("  -c, --copy                 Copy files (preserve originals)");
@@ -122,6 +182,7 @@ public class Cli {
     static class CliOptions {
         String source;
         String dest;
+        String dest2;
         boolean copyMode = true;
         boolean scheduledTree;
         boolean compareName;
@@ -151,6 +212,10 @@ public class Cli {
                     case "--dest":
                         if (++i >= args.length) { err("--dest requires a path"); return false; }
                         dest = args[i];
+                        break;
+                    case "--dest2":
+                        if (++i >= args.length) { err("--dest2 requires a path"); return false; }
+                        dest2 = args[i];
                         break;
                     case "-c":
                     case "--copy":
