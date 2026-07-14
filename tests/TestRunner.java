@@ -139,6 +139,7 @@ public class TestRunner {
         runTestClass(LengthFirstComparatorTest.class);
         runTestClass(TextAreaOutputStreamTest.class);
         runTestClass(MoveClassTest.class);
+        runTestClass(UpdaterTest.class);
 
         System.out.println("\n============================================");
         System.out.println("  Results: " + (passed + failed) + " tests, "
