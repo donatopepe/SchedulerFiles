@@ -542,6 +542,19 @@ public class SchedulerFiles extends javax.swing.JFrame {
                 return;
             }
 
+            File iconFile = new File(System.getenv("LOCALAPPDATA"),
+                "SchedulerFiles\\schedulerfiles.png");
+            File iconDirectory = iconFile.getParentFile();
+            if (!iconDirectory.isDirectory() && !iconDirectory.mkdirs()) {
+                throw new IOException("Could not create icon directory");
+            }
+            try (java.io.InputStream icon = SchedulerFiles.class
+                    .getResourceAsStream("/icon/schedulerfiles.png")) {
+                if (icon == null) throw new IOException("Application icon is missing");
+                Files.copy(icon, iconFile.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
+
             File script = File.createTempFile("schedulerfiles-shortcut-", ".vbs");
             try (BufferedWriter writer = new BufferedWriter(new FileWriter(script))) {
                 writer.write("Set shell = CreateObject(\"WScript.Shell\")\r\n");
@@ -550,7 +563,7 @@ public class SchedulerFiles extends javax.swing.JFrame {
                 writer.write("link.Arguments = \"-jar \"\"" + vbs(jar.getAbsolutePath()) + "\"\"\"\r\n");
                 writer.write("link.WorkingDirectory = \"" + vbs(jar.getParentFile().getAbsolutePath()) + "\"\r\n");
                 writer.write("link.Description = \"SchedulerFiles\"\r\n");
-                writer.write("link.IconLocation = \"" + vbs(jar.getAbsolutePath()) + ",0\"\r\n");
+                writer.write("link.IconLocation = \"" + vbs(iconFile.getAbsolutePath()) + ",0\"\r\n");
                 writer.write("link.Save\r\n");
             }
             Process process = new ProcessBuilder("cscript.exe", "//nologo", script.getAbsolutePath())
