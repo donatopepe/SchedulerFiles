@@ -42,7 +42,8 @@ jobs:
           cp build/classes/about.html build/classes/about-en.html build/jar/
           mkdir -p build/jar/icon
           cp build/classes/icon/schedulerfiles.png build/classes/icon/schedulerfiles.ico build/jar/icon/
-          jar cfm dist/SchedulerFiles.jar build/Manifest.txt -C build/jar .
+          jar --create --file dist/SchedulerFiles.jar --manifest build/Manifest.txt -C build/jar .
+          test -f dist/SchedulerFiles.jar
 
       - name: Upload JAR as artifact
         uses: actions/upload-artifact@v4
