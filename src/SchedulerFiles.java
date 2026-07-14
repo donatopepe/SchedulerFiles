@@ -28,6 +28,7 @@ public class SchedulerFiles extends javax.swing.JFrame {
     private static final long serialVersionUID = 1L;
     private final String paypalme = "https://www.paypal.me/DonatoPepe";
     private final javax.swing.JCheckBox verifyHash = new javax.swing.JCheckBox("Verify SHA-256");
+    private javax.swing.JTextField secondDestinationPath;
     private Thread workerThread;
     private MoveClass currentTask;
 
@@ -83,7 +84,8 @@ public class SchedulerFiles extends javax.swing.JFrame {
 
         // Tooltips and accessible names
         SourcePath.setToolTipText("Source directory path - type, drag & drop, or Browse");
-        DestinationPath.setToolTipText("Destination directory path - type, drag & drop, or Browse");
+        DestinationPath.setToolTipText("Primary destination directory path - type, drag & drop, or Browse");
+        secondDestinationPath.setToolTipText("Optional second destination; copy mode keeps both destinations synchronized");
         jButtonScheda.setToolTipText("Start the copy/move operation");
         jButtonCancel.setToolTipText("Cancel the running operation");
         jCheckBoxCopia.setToolTipText("Uncheck to move files (delete from source)");
@@ -93,7 +95,8 @@ public class SchedulerFiles extends javax.swing.JFrame {
         comparename.setToolTipText("Skip files with the same filename");
         verifyHash.setToolTipText("Compute SHA-256 hash before and after transfer (default enabled)");
         SourcePath.getAccessibleContext().setAccessibleName("Source directory");
-        DestinationPath.getAccessibleContext().setAccessibleName("Destination directory");
+        DestinationPath.getAccessibleContext().setAccessibleName("Primary destination directory");
+        secondDestinationPath.getAccessibleContext().setAccessibleName("Optional second destination directory");
         jButtonScheda.getAccessibleContext().setAccessibleName("Start file transfer");
         jButtonCancel.getAccessibleContext().setAccessibleName("Cancel file transfer");
         jCheckBoxCopia.getAccessibleContext().setAccessibleDescription(
@@ -120,6 +123,11 @@ public class SchedulerFiles extends javax.swing.JFrame {
         jPanel1.add(verifyHash, new AbsoluteConstraints(10, 30, -1, -1));
 
         addBrowseButtons();
+        javax.swing.JButton btnDst2 = new javax.swing.JButton("Browse");
+        btnDst2.setFont(new java.awt.Font("Arial", 0, 12));
+        btnDst2.getAccessibleContext().setAccessibleName("Browse second destination directory");
+        btnDst2.addActionListener(e -> chooseDirectory(secondDestinationPath));
+        getContentPane().add(btnDst2, new AbsoluteConstraints(625, 74, 80, 25));
     }
 
     private void addBrowseButtons() {
@@ -168,6 +176,7 @@ public class SchedulerFiles extends javax.swing.JFrame {
         jCheckBoxCopia = new javax.swing.JCheckBox();
         SourcePath = new javax.swing.JTextField();
         DestinationPath = new javax.swing.JTextField();
+        secondDestinationPath = new javax.swing.JTextField();
         developer = new javax.swing.JLabel();
         info = new javax.swing.JLabel();
         avanzamento = new javax.swing.JLabel();
@@ -204,6 +213,13 @@ public class SchedulerFiles extends javax.swing.JFrame {
 
         DestinationPath.setFont(new java.awt.Font("Arial", 0, 12));
         getContentPane().add(DestinationPath, new AbsoluteConstraints(85, 46, 530, 25));
+
+        //--- Optional twin destination ---
+        javax.swing.JLabel secondDestinationLabel = new javax.swing.JLabel("Dest 2");
+        secondDestinationLabel.setFont(new java.awt.Font("Arial", 0, 14));
+        secondDestinationLabel.setLabelFor(secondDestinationPath);
+        getContentPane().add(secondDestinationLabel, new AbsoluteConstraints(10, 76, -1, -1));
+        getContentPane().add(secondDestinationPath, new AbsoluteConstraints(85, 74, 530, 25));
 
         //--- Row 3: Progress bar (full width) ---
         avanzamento.setFont(new java.awt.Font("Arial", 0, 12));
@@ -331,6 +347,7 @@ public class SchedulerFiles extends javax.swing.JFrame {
     private boolean validateInput() {
         String src = SourcePath.getText();
         String dst = DestinationPath.getText();
+        String dst2 = secondDestinationPath.getText().trim();
         if (src == null || src.trim().isEmpty()) {
             jTextLog.setText("Error: source directory not specified");
             return false;
@@ -345,8 +362,19 @@ public class SchedulerFiles extends javax.swing.JFrame {
             return false;
         }
         Path destPath = Paths.get(dst);
+        if (!dst2.isEmpty() && !jCheckBoxCopia.isSelected()) {
+            jTextLog.setText("Error: second destination requires Copy mode");
+            return false;
+        }
         if (!Files.isDirectory(destPath)) {
             jTextLog.setText("Error: destination is not a valid directory\n" + dst);
+            return false;
+        }
+        Path dest2Path = dst2.isEmpty() ? null : Paths.get(dst2);
+        if (dest2Path != null && (!Files.isDirectory(dest2Path)
+                || destPath.toAbsolutePath().equals(dest2Path.toAbsolutePath())
+                || sourcePath.toAbsolutePath().equals(dest2Path.toAbsolutePath()))) {
+            jTextLog.setText("Error: second destination must be different and valid");
             return false;
         }
         if (sourcePath.toAbsolutePath().equals(destPath.toAbsolutePath())) {
@@ -370,6 +398,8 @@ public class SchedulerFiles extends javax.swing.JFrame {
             "Start " + (jCheckBoxCopia.isSelected() ? "copy" : "move")
             + " from:\n  " + SourcePath.getText()
             + "\nto:\n  " + DestinationPath.getText()
+            + (secondDestinationPath.getText().trim().isEmpty() ? "" :
+                "\nand mirror:\n  " + secondDestinationPath.getText().trim())
             + "\n\nThis operation cannot be undone.",
             "Confirm",
             JOptionPane.OK_CANCEL_OPTION,
@@ -386,7 +416,18 @@ public class SchedulerFiles extends javax.swing.JFrame {
             verifyHash.isSelected()
         );
 
-        workerThread = new Thread(currentTask);
+        final String secondPath = secondDestinationPath.getText().trim();
+        workerThread = new Thread(() -> {
+            currentTask.run();
+            if (!currentTask.hasErrors() && !currentTask.isCancelled() && !secondPath.isEmpty()) {
+                MoveClass mirror = new MoveClass(Paths.get(SourcePath.getText()), Paths.get(secondPath),
+                    jTextLog, avanzamento, comparefile.isSelected(), comparename.isSelected(),
+                    true, ScheduledTree.isSelected(), verifyHash.isSelected());
+                mirror.run();
+                if (!mirror.hasErrors()) jTextLog.append("Twin destinations synchronized.\n");
+                else jTextLog.append("Twin destination replication failed.\n");
+            }
+        });
         workerThread.setDaemon(true);
         // Monitor thread: wait for worker, then re-enable button
         Thread monitor = new Thread(() -> {
