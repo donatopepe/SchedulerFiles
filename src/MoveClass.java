@@ -46,6 +46,7 @@ public class MoveClass implements Runnable {
     private TransactionLog txLog;
     private boolean txLogFailed;
     private final TransferService transferService = new TransferService();
+    private final Map<Path, DestinationIndex> destinationIndexes = new HashMap<>();
     private String cachedSourceHash;  // avoids double hash in skip+verify
 
     private final TreeSet<String> fileAccumulator = new TreeSet<>(new LengthFirstComparator());
@@ -205,18 +206,9 @@ public class MoveClass implements Runnable {
         String skipDestPath = null;
 
         if (compareByName || compareByContent) {
-            File dir = new File(destDir);
-            File[] existing = dir.listFiles();
-            HashSet<String> destNames = new HashSet<>();
-            Map<String, String> destPaths = new HashMap<>();
-            if (existing != null) {
-                for (File f : existing) {
-                    if (f.isFile()) {
-                        destNames.add(f.getName());
-                        destPaths.put(f.getName(), f.getAbsolutePath());
-                    }
-                }
-            }
+            DestinationIndex index = getDestinationIndex(Paths.get(destDir));
+            HashSet<String> destNames = index.names;
+            Map<String, String> destPaths = index.paths;
 
             if (compareByName && !compareByContent) {
                 if (destNames.contains(name)) {
@@ -303,6 +295,36 @@ public class MoveClass implements Runnable {
         if (destHash != null) tx.append("  D=").append(destHash.substring(0, 16));
         if (!hashOk) tx.append("  ** HASH MISMATCH **");
         writeTransferTx(tx.toString(), op, targetPath);
+        DestinationIndex index = destinationIndexes.get(destDirPath.toAbsolutePath().normalize());
+        if (index != null) index.add(targetPath);
+    }
+
+    private DestinationIndex getDestinationIndex(Path directory) {
+        Path key = directory.toAbsolutePath().normalize();
+        DestinationIndex index = destinationIndexes.get(key);
+        if (index != null) return index;
+        index = new DestinationIndex(key);
+        destinationIndexes.put(key, index);
+        return index;
+    }
+
+    private static final class DestinationIndex {
+        final HashSet<String> names = new HashSet<>();
+        final Map<String, String> paths = new HashMap<>();
+
+        DestinationIndex(Path directory) {
+            File[] existing = directory.toFile().listFiles();
+            if (existing != null) {
+                for (File file : existing) {
+                    if (file.isFile()) add(file.toPath());
+                }
+            }
+        }
+
+        void add(Path file) {
+            names.add(file.getFileName().toString());
+            paths.put(file.getFileName().toString(), file.toAbsolutePath().toString());
+        }
     }
 
     private void createDestDir(String dirPath) throws IOException {
