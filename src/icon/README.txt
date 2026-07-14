@@ -1,0 +1,1 @@
+schedulerfiles.png: application icon, generated from schedulerfiles.svg. Represents document scheduler with pencil.

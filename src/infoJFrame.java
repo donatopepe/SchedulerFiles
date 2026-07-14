@@ -10,6 +10,8 @@ import javax.swing.BorderFactory;
 import javax.swing.JEditorPane;
 import javax.swing.JLabel;
 import javax.swing.JScrollPane;
+import javax.swing.JComboBox;
+import javax.swing.JPanel;
 import javax.swing.event.HyperlinkEvent;
 
 public class infoJFrame extends javax.swing.JFrame {
@@ -32,12 +34,16 @@ public class infoJFrame extends javax.swing.JFrame {
         header.setFont(new Font("Arial", Font.BOLD, 22));
         header.getAccessibleContext().setAccessibleName("Files Scheduler information");
 
-        JEditorPane content = new JEditorPane("text/html", loadHtmlContent());
+        JComboBox<String> language = new JComboBox<>(new String[]{"Italiano", "English"});
+        language.getAccessibleContext().setAccessibleName("Guide language");
+        JEditorPane content = new JEditorPane("text/html", loadHtmlContent("it"));
         content.setEditable(false);
         content.setCaretPosition(0);
         content.getAccessibleContext().setAccessibleName("SchedulerFiles information");
         content.getAccessibleContext().setAccessibleDescription(
             "Features, safety notice, license, and project link");
+        language.addActionListener(event -> content.setText(loadHtmlContent(
+            language.getSelectedIndex() == 0 ? "it" : "en")));
         content.addHyperlinkListener(event -> {
             if (event.getEventType() == HyperlinkEvent.EventType.ACTIVATED
                     && event.getURL() != null) {
@@ -53,15 +59,22 @@ public class infoJFrame extends javax.swing.JFrame {
         scroll.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createEmptyBorder(4, 16, 4, 16), scroll.getBorder()));
 
-        javax.swing.JPanel panel = new javax.swing.JPanel(new java.awt.BorderLayout(0, 8));
+        JPanel languagePanel = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 4, 0));
+        languagePanel.add(new JLabel("Language:"));
+        languagePanel.add(language);
+        JPanel panel = new JPanel(new java.awt.BorderLayout(0, 8));
         panel.setBorder(BorderFactory.createEmptyBorder(12, 10, 10, 10));
-        panel.add(header, java.awt.BorderLayout.NORTH);
+        JPanel top = new JPanel(new java.awt.BorderLayout());
+        top.add(header, java.awt.BorderLayout.CENTER);
+        top.add(languagePanel, java.awt.BorderLayout.SOUTH);
+        panel.add(top, java.awt.BorderLayout.NORTH);
         panel.add(scroll, java.awt.BorderLayout.CENTER);
         setContentPane(panel);
     }
 
-    private String loadHtmlContent() {
-        try (InputStream input = infoJFrame.class.getResourceAsStream("/about.html")) {
+    private String loadHtmlContent(String language) {
+        String resource = "en".equals(language) ? "/about-en.html" : "/about.html";
+        try (InputStream input = infoJFrame.class.getResourceAsStream(resource)) {
             if (input == null) {
                 LOG.warning("About page resource not found");
                 return "<html><body><h2>SchedulerFiles</h2><p>Information unavailable.</p></body></html>";

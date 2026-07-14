@@ -23,7 +23,9 @@ jobs:
         run: |
           mkdir -p build/classes
           javac --release 8 -Xlint:all -Werror -d build/classes -cp "dist/lib/AbsoluteLayout.jar" src/*.java
-          cp src/about.html build/classes/about.html
+          cp src/about.html src/about-en.html build/classes/
+          mkdir -p build/classes/icon
+          cp src/icon/schedulerfiles.png build/classes/icon/
 
       - name: Compile tests
         run: |
@@ -37,9 +39,11 @@ jobs:
           mkdir -p build/jar/lib
           cp dist/lib/AbsoluteLayout.jar build/jar/lib/
           find build/classes -maxdepth 1 -name '*.class' ! -name '*Test*.class' -exec cp {} build/jar/ \;
-          cp build/classes/about.html build/jar/about.html
+          cp build/classes/about.html build/classes/about-en.html build/jar/
+          mkdir -p build/jar/icon
+          cp build/classes/icon/schedulerfiles.png build/jar/icon/
           cd build/jar
-          jar cfm ../../dist/SchedulerFiles.jar ../../build/Manifest.txt *.class about.html lib/AbsoluteLayout.jar
+          jar cfm ../../dist/SchedulerFiles.jar ../../build/Manifest.txt *.class about.html about-en.html icon/schedulerfiles.png lib/AbsoluteLayout.jar
           cd ../..
 
       - name: Upload JAR as artifact
