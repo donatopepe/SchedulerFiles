@@ -23,7 +23,8 @@ public class HashUtil {
             }
             return bytesToHex(md.digest());
         } catch (NoSuchAlgorithmException e) {
-            throw new IOException("Hash algorithm " + ALGORITHM + " not available", e);
+            // SHA-256 is guaranteed by the JDK; this should never happen.
+            throw new RuntimeException("SHA-256 not available on this JVM", e);
         }
     }
 

@@ -413,7 +413,9 @@ public class MoveClass implements Runnable {
                 for (String f : fileAccumulator) {
                     if (isStopped()) {
                         log("===== STOPPED =====");
-                        writeTx("# " + txTimestamp() + "  *** STOPPED ***");
+                        if (txWriter != null) {
+                            writeTx("# " + txTimestamp() + "  *** STOPPED ***");
+                        }
                         return;
                     }
                     processFile(f);

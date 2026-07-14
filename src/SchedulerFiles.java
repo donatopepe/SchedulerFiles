@@ -409,8 +409,13 @@ public class SchedulerFiles extends javax.swing.JFrame {
     }
 
     private void formWindowClosing(java.awt.event.WindowEvent evt) {
-        if (currentTask != null) currentTask.requestStop();
-        if (workerThread != null && workerThread.isAlive()) workerThread.interrupt();
+        Thread t = workerThread;
+        MoveClass task = currentTask;
+        if (task != null) task.requestStop();
+        if (t != null && t.isAlive()) {
+            t.interrupt();
+            try { t.join(2000); } catch (InterruptedException ignored) {}
+        }
 
         Logger log = Logger.getLogger(SchedulerFiles.class.getName());
         log.info("End");

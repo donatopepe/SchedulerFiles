@@ -44,13 +44,17 @@ public class Updater {
         try (java.io.InputStream is = Updater.class.getResourceAsStream(
                 "/META-INF/MANIFEST.MF")) {
             if (is != null) {
-                String content = new java.util.Scanner(is, "UTF-8")
-                    .useDelimiter("\\A").next();
-                for (String line : content.split("\n")) {
-                    if (line.startsWith("Implementation-Version:")) {
-                        return line.substring("Implementation-Version:".length()).trim();
+                java.util.Scanner sc = new java.util.Scanner(is, "UTF-8");
+                sc.useDelimiter("\\A");
+                if (sc.hasNext()) {
+                    String content = sc.next();
+                    for (String line : content.split("\n")) {
+                        if (line.startsWith("Implementation-Version:")) {
+                            return line.substring("Implementation-Version:".length()).trim();
+                        }
                     }
                 }
+                sc.close();
             }
         } catch (Exception ignored) {}
 
