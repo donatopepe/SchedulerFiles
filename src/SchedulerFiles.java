@@ -189,6 +189,8 @@ public class SchedulerFiles extends javax.swing.JFrame {
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setTitle("Files scheduler");
+        java.net.URL appIcon = SchedulerFiles.class.getResource("/icon/schedulerfiles.png");
+        if (appIcon != null) setIconImage(new javax.swing.ImageIcon(appIcon).getImage());
         setFont(new java.awt.Font("Arial", 0, 10));
         setResizable(true);
         addWindowListener(new java.awt.event.WindowAdapter() {
