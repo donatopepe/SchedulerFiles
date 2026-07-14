@@ -9,6 +9,7 @@ import java.security.NoSuchAlgorithmException;
 public class HashUtil {
 
     private static final String ALGORITHM = "SHA-256";
+    private static final char[] HEX = "0123456789abcdef".toCharArray();
 
     public static String sha256(Path filePath) throws IOException {
         try {
@@ -27,10 +28,12 @@ public class HashUtil {
     }
 
     private static String bytesToHex(byte[] bytes) {
-        StringBuilder sb = new StringBuilder();
-        for (byte b : bytes) {
-            sb.append(String.format("%02x", b));
+        char[] hex = new char[bytes.length * 2];
+        for (int i = 0; i < bytes.length; i++) {
+            int v = bytes[i] & 0xFF;
+            hex[i * 2] = HEX[v >>> 4];
+            hex[i * 2 + 1] = HEX[v & 0x0F];
         }
-        return sb.toString();
+        return new String(hex);
     }
 }

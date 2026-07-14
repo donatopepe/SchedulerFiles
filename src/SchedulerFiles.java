@@ -19,7 +19,7 @@ import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
-import javax.swing.Timer;
+import javax.swing.SwingUtilities;
 import javax.swing.text.DefaultCaret;
 import org.netbeans.lib.awtextra.AbsoluteConstraints;
 
@@ -79,17 +79,23 @@ public class SchedulerFiles extends javax.swing.JFrame {
         connectToDragDrop();
         checkForUpdates();
 
+        // Tooltips
+        SourcePath.setToolTipText("Source directory path - type, drag & drop, or Browse");
+        DestinationPath.setToolTipText("Destination directory path - type, drag & drop, or Browse");
+        jButtonScheda.setToolTipText("Start the copy/move operation");
+        jButtonCancel.setToolTipText("Cancel the running operation");
+        jCheckBoxCopia.setToolTipText("Uncheck to move files (delete from source)");
+        OriginalTree.setToolTipText("Preserve the original folder structure");
+        ScheduledTree.setToolTipText("Organize by year / month / file extension");
+        comparefile.setToolTipText("Skip files with identical content");
+        comparename.setToolTipText("Skip files with the same filename");
+        verifyHash.setToolTipText("Compute SHA-256 hash before and after transfer");
+
         // Verify hash inside compare panel (second row)
         verifyHash.setFont(new java.awt.Font("Arial", 0, 12));
         jPanel1.add(verifyHash, new AbsoluteConstraints(10, 30, -1, -1));
 
         addBrowseButtons();
-
-        Timer timer = new Timer(500, e -> {
-            if (currentTask != null && workerThread != null && workerThread.isAlive()) {
-            }
-        });
-        timer.start();
     }
 
     private void addBrowseButtons() {
@@ -263,24 +269,37 @@ public class SchedulerFiles extends javax.swing.JFrame {
 
             String current = updater.getCurrentVersion();
             if (Updater.compareVersions(current, latest) > 0) {
-                int choice = JOptionPane.showOptionDialog(this,
-                    "<html>A new version is available!<br>"
-                    + "Current: <b>" + current + "</b><br>"
-                    + "Latest:  <b>" + latest + "</b><br><br>"
-                    + "Open the download page?</html>",
-                    "Update Available",
-                    JOptionPane.YES_NO_OPTION,
-                    JOptionPane.INFORMATION_MESSAGE,
-                    null, new String[]{"Download", "Later"}, "Download");
-                if (choice == JOptionPane.YES_OPTION) {
-                    Updater.openReleasesPage();
-                }
+                String[] options = {"Download", "Later"};
+                // Show dialog on EDT
+                javax.swing.SwingUtilities.invokeLater(() -> {
+                    int choice = JOptionPane.showOptionDialog(this,
+                        "<html>A new version is available!<br>"
+                        + "Current: <b>" + current + "</b><br>"
+                        + "Latest:  <b>" + latest + "</b><br><br>"
+                        + "Open the download page?</html>",
+                        "Update Available",
+                        JOptionPane.YES_NO_OPTION,
+                        JOptionPane.INFORMATION_MESSAGE,
+                        null, options, "Download");
+                    if (choice == JOptionPane.YES_OPTION) {
+                        Updater.openReleasesPage();
+                    }
+                });
             }
         }, "update-checker").start();
     }
 
     private void updateButtonLabel() {
         jButtonScheda.setText(jCheckBoxCopia.isSelected() ? "Start Copy" : "Start Move");
+    }
+
+    /** Called by MoveClass when operation completes (success or cancel). */
+    void onTaskFinished() {
+        javax.swing.SwingUtilities.invokeLater(() -> {
+            jButtonScheda.setEnabled(true);
+            workerThread = null;
+            currentTask = null;
+        });
     }
 
     private boolean validateInput() {
@@ -332,7 +351,18 @@ public class SchedulerFiles extends javax.swing.JFrame {
 
         workerThread = new Thread(currentTask);
         workerThread.setDaemon(true);
+        // Monitor thread: wait for worker, then re-enable button
+        Thread monitor = new Thread(() -> {
+            try {
+                workerThread.join();
+            } catch (InterruptedException ignored) {}
+            javax.swing.SwingUtilities.invokeLater(() -> {
+                jButtonScheda.setEnabled(true);
+            });
+        }, "task-monitor");
+        monitor.setDaemon(true);
         workerThread.start();
+        monitor.start();
 
         jButtonScheda.setEnabled(false);
         jTextLog.setText("Starting...\n");
