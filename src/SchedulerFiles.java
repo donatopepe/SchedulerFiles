@@ -543,13 +543,13 @@ public class SchedulerFiles extends javax.swing.JFrame {
             }
 
             File iconFile = new File(System.getenv("LOCALAPPDATA"),
-                "SchedulerFiles\\schedulerfiles.png");
+                "SchedulerFiles\\schedulerfiles.ico");
             File iconDirectory = iconFile.getParentFile();
             if (!iconDirectory.isDirectory() && !iconDirectory.mkdirs()) {
                 throw new IOException("Could not create icon directory");
             }
             try (java.io.InputStream icon = SchedulerFiles.class
-                    .getResourceAsStream("/icon/schedulerfiles.png")) {
+                    .getResourceAsStream("/icon/schedulerfiles.ico")) {
                 if (icon == null) throw new IOException("Application icon is missing");
                 Files.copy(icon, iconFile.toPath(),
                     java.nio.file.StandardCopyOption.REPLACE_EXISTING);
