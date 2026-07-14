@@ -1,7 +1,5 @@
 import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.nio.MappedByteBuffer;
-import java.nio.channels.FileChannel;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -13,24 +11,29 @@ public final class FileComparator {
 
     public static boolean sameBytes(Path first, Path second) throws IOException {
         if (!Files.exists(second) || Files.size(first) != Files.size(second)) return false;
-
-        try (RandomAccessFile firstFile = new RandomAccessFile(first.toFile(), "r");
-             RandomAccessFile secondFile = new RandomAccessFile(second.toFile(), "r");
-             FileChannel firstChannel = firstFile.getChannel();
-             FileChannel secondChannel = secondFile.getChannel()) {
-            long size = firstChannel.size();
-            long position = 0;
-            final long chunkSize = 16L * 1024 * 1024;
-            while (position < size) {
-                long remaining = Math.min(chunkSize, size - position);
-                MappedByteBuffer firstBuffer = firstChannel.map(
-                    FileChannel.MapMode.READ_ONLY, position, remaining);
-                MappedByteBuffer secondBuffer = secondChannel.map(
-                    FileChannel.MapMode.READ_ONLY, position, remaining);
-                if (!firstBuffer.equals(secondBuffer)) return false;
-                position += remaining;
+        byte[] firstBuffer = new byte[1024 * 1024];
+        byte[] secondBuffer = new byte[firstBuffer.length];
+        try (InputStream firstStream = Files.newInputStream(first);
+             InputStream secondStream = Files.newInputStream(second)) {
+            int firstRead;
+            while ((firstRead = readChunk(firstStream, firstBuffer)) > 0) {
+                int secondRead = readChunk(secondStream, secondBuffer);
+                if (firstRead != secondRead) return false;
+                for (int i = 0; i < firstRead; i++) {
+                    if (firstBuffer[i] != secondBuffer[i]) return false;
+                }
             }
-            return true;
+            return secondStream.read() == -1;
         }
+    }
+
+    private static int readChunk(InputStream stream, byte[] buffer) throws IOException {
+        int total = 0;
+        int read;
+        while (total < buffer.length && (read = stream.read(buffer, total,
+                buffer.length - total)) != -1) {
+            total += read;
+        }
+        return total;
     }
 }

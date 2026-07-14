@@ -48,9 +48,17 @@ cp src/about.html /tmp/schedulerfiles-classes/about.html
 
 Nota: `javac -cp` deve usare `dist/lib/AbsoluteLayout.jar`, non `src/lib`.
 
+## Ottimizzazioni performance
+
+- [x] Indicizzare destinazione una volta per operazione, evitando `listFiles()` per ogni file.
+- [ ] Cache hash destinazione con size/lastModified.
+- [x] Sostituire `MappedByteBuffer` con buffer riutilizzabile per confronto byte.
+- [ ] Accorpare flush transaction log per ridurre I/O.
+- [ ] Valutare hashing parallelo opzionale su storage veloce.
+
 ## Prossimo lavoro consigliato
 
-Tutte le attività pianificate risultano completate.
+Applicare ottimizzazioni performance in ordine, misurando test prima/dopo.
 
 ## Regole operative
 
