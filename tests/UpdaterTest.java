@@ -89,6 +89,7 @@ public class UpdaterTest {
     // ===== HTTP fetch with local test server =====
 
     static void testFetchLatestVersionSuccess() {
+        Updater.clearCache();
         try {
             HttpServer server = startMockServer(200,
                 "{\"tag_name\":\"v2.0.0\",\"name\":\"Release 2.0.0\"}");
@@ -105,6 +106,7 @@ public class UpdaterTest {
     }
 
     static void testFetchLatestVersion404() {
+        Updater.clearCache();
         try {
             HttpServer server = startMockServer(404, "Not Found");
             try {
@@ -121,6 +123,7 @@ public class UpdaterTest {
     }
 
     static void testFetchLatestVersionMalformedJson() {
+        Updater.clearCache();
         try {
             HttpServer server = startMockServer(200, "{bad json}");
             try {
@@ -137,6 +140,7 @@ public class UpdaterTest {
     }
 
     static void testFetchLatestVersionEmptyBody() {
+        Updater.clearCache();
         try {
             HttpServer server = startMockServer(200, "");
             try {
@@ -153,6 +157,7 @@ public class UpdaterTest {
     }
 
     static void testFetchLatestVersionTimeout() {
+        Updater.clearCache();
         // Point to a non-routable IP to trigger timeout / connection refused
         Updater u = new Updater("http://10.255.255.1:1/");
         String v = u.fetchLatestVersion();
@@ -161,6 +166,7 @@ public class UpdaterTest {
     }
 
     static void testFetchLatestVersionNullUrl() {
+        Updater.clearCache();
         // URL with unresolvable host
         Updater u = new Updater("http://thishostdoesnotexist99999.local/");
         String v = u.fetchLatestVersion();
@@ -171,6 +177,7 @@ public class UpdaterTest {
     // ===== Full check flow =====
 
     static void testAlreadyLatestNoDialog() {
+        Updater.clearCache();
         try {
             HttpServer server = startMockServer(200,
                 "{\"tag_name\":\"v0.0.0\"}");
@@ -189,6 +196,7 @@ public class UpdaterTest {
     }
 
     static void testNewVersionDetected() {
+        Updater.clearCache();
         try {
             HttpServer server = startMockServer(200,
                 "{\"tag_name\":\"v9.9.9\"}");
