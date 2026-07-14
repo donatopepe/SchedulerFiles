@@ -4,6 +4,8 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
 import java.io.IOException;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -515,6 +517,60 @@ public class SchedulerFiles extends javax.swing.JFrame {
     private javax.swing.JTextArea jTextLog;
     // End of variables declaration//GEN-END:variables
 
+    private static void offerDesktopShortcut() {
+        if (!System.getProperty("os.name", "").toLowerCase().contains("win")) return;
+
+        File desktop = new File(System.getProperty("user.home"), "Desktop");
+        if (!desktop.isDirectory()) return;
+        File shortcut = new File(desktop, "SchedulerFiles.lnk");
+        if (shortcut.exists()) return;
+
+        int answer = JOptionPane.showConfirmDialog(null,
+            "Create SchedulerFiles shortcut on user desktop?",
+            "SchedulerFiles", JOptionPane.YES_NO_OPTION,
+            JOptionPane.QUESTION_MESSAGE);
+        if (answer != JOptionPane.YES_OPTION) return;
+
+        try {
+            java.net.URL location = SchedulerFiles.class.getProtectionDomain()
+                .getCodeSource().getLocation();
+            File jar = new File(location.toURI());
+            if (!jar.isFile() || !jar.getName().toLowerCase().endsWith(".jar")) {
+                JOptionPane.showMessageDialog(null,
+                    "Shortcut can be created only when running from a JAR.",
+                    "SchedulerFiles", JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+
+            File script = File.createTempFile("schedulerfiles-shortcut-", ".vbs");
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(script))) {
+                writer.write("Set shell = CreateObject(\"WScript.Shell\")\r\n");
+                writer.write("Set link = shell.CreateShortcut(\"" + vbs(shortcut.getAbsolutePath()) + "\")\r\n");
+                writer.write("link.TargetPath = \"javaw.exe\"\r\n");
+                writer.write("link.Arguments = \"-jar \"\"" + vbs(jar.getAbsolutePath()) + "\"\"\"\r\n");
+                writer.write("link.WorkingDirectory = \"" + vbs(jar.getParentFile().getAbsolutePath()) + "\"\r\n");
+                writer.write("link.Description = \"SchedulerFiles\"\r\n");
+                writer.write("link.IconLocation = \"" + vbs(jar.getAbsolutePath()) + ",0\"\r\n");
+                writer.write("link.Save\r\n");
+            }
+            Process process = new ProcessBuilder("cscript.exe", "//nologo", script.getAbsolutePath())
+                .redirectErrorStream(true).start();
+            if (process.waitFor() != 0 || !shortcut.isFile()) {
+                throw new IOException("Windows shortcut creation failed");
+            }
+        } catch (Exception e) {
+            Logger.getLogger(SchedulerFiles.class.getName()).log(Level.WARNING,
+                "Could not create desktop shortcut", e);
+            JOptionPane.showMessageDialog(null,
+                "Could not create desktop shortcut:\n" + e.getMessage(),
+                "SchedulerFiles", JOptionPane.WARNING_MESSAGE);
+        }
+    }
+
+    private static String vbs(String value) {
+        return value.replace("\\", "\\\\").replace("\"", "\"\"");
+    }
+
     public static void main(String args[]) {
         // CLI mode: if arguments provided, run headless
         if (args.length > 0) {
@@ -530,6 +586,9 @@ public class SchedulerFiles extends javax.swing.JFrame {
                  | javax.swing.UnsupportedLookAndFeelException ex) {
             Logger.getLogger(SchedulerFiles.class.getName()).log(Level.SEVERE, null, ex);
         }
-        java.awt.EventQueue.invokeLater(() -> new SchedulerFiles().setVisible(true));
+        java.awt.EventQueue.invokeLater(() -> {
+            offerDesktopShortcut();
+            new SchedulerFiles().setVisible(true);
+        });
     }
 }
