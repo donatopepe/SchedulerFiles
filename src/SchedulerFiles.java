@@ -424,12 +424,13 @@ public class SchedulerFiles extends javax.swing.JFrame {
         workerThread = new Thread(() -> {
             currentTask.run();
             if (!currentTask.hasErrors() && !currentTask.isCancelled() && !secondPath.isEmpty()) {
-                MoveClass mirror = new MoveClass(Paths.get(SourcePath.getText()), Paths.get(secondPath),
-                    jTextLog, avanzamento, comparefile.isSelected(), comparename.isSelected(),
-                    true, ScheduledTree.isSelected(), verifyHash.isSelected());
-                mirror.run();
-                if (!mirror.hasErrors()) jTextLog.append("Twin destinations synchronized.\n");
-                else jTextLog.append("Twin destination replication failed.\n");
+                try {
+                    new MirrorService().synchronize(Paths.get(DestinationPath.getText()),
+                        Paths.get(secondPath));
+                    jTextLog.append("Twin destinations synchronized and parity verified.\n");
+                } catch (IOException e) {
+                    jTextLog.append("Twin destination parity failed: " + e.getMessage() + "\n");
+                }
             }
         });
         workerThread.setDaemon(true);

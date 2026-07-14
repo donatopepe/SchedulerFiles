@@ -98,19 +98,12 @@ public class Cli {
         boolean failed = mc.hasErrors();
         if (dest2 != null && !mc.isCancelled() && !failed) {
             dummyLog.append("===== SECOND DESTINATION =====\n");
-            MoveClass replica = new MoveClass(
-                source, dest2, dummyLog, dummyProgress,
-                opts.compareContent, opts.compareName,
-                true, opts.scheduledTree, opts.verifyHash);
-            replica.run();
-            failed = replica.hasErrors();
-            if (!failed) {
-                try {
-                    removeStaleEntries(dest, dest2);
-                } catch (IOException e) {
-                    failed = true;
-                    dummyLog.append("RAID-1 cleanup failed: " + e.getMessage() + "\n");
-                }
+            try {
+                new MirrorService().synchronize(dest, dest2);
+                dummyLog.append("RAID-1 parity verified: destinations synchronized\n");
+            } catch (IOException e) {
+                failed = true;
+                dummyLog.append("RAID-1 parity failed: " + e.getMessage() + "\n");
             }
             if (failed) dummyLog.append("RAID-1 replication incomplete: destinations differ\n");
             else dummyLog.append("RAID-1 replication complete: destinations synchronized\n");
@@ -122,6 +115,7 @@ public class Cli {
         return failed ? EXIT_ERROR : EXIT_OK;
     }
 
+    /* Legacy helper retained for source compatibility. MirrorService handles parity. */
     private static void removeStaleEntries(final Path primary, Path replica) throws IOException {
         Files.walkFileTree(replica, new SimpleFileVisitor<Path>() {
             @Override

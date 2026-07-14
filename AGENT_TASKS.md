@@ -57,6 +57,7 @@ Nota: `javac -cp` deve usare `dist/lib/AbsoluteLayout.jar`, non `src/lib`.
 - [x] Aggiungere test replica e validazione opzioni.
 - [x] Aggiungere seconda destinazione opzionale nella GUI.
 - [x] Aggiornare guida CLI/GUI per replica twin.
+- [x] Evolvere replica a sincronizzazione mirror con rimozione stale e verifica parity SHA-256.
 
 ## Ottimizzazioni performance
 

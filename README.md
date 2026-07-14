@@ -12,7 +12,8 @@ Java Swing and command-line utility for safe file copy/move operations.
 - Skip symbolic links, junction-like links, and directory cycles
 - Write `_files_scheduler.log` in destination
 - Cancel running GUI operations
-- Optional two-destination copy in CLI and GUI (software RAID-1 style replication)
+- Optional two-destination mirror in CLI and GUI (software RAID-1 style replication)
+- Mirror parity verification with SHA-256 and stale-file removal
 
 ## Requirements
 
