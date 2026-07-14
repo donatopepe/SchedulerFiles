@@ -1,3 +1,4 @@
+import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -37,6 +38,11 @@ public class Cli {
             return EXIT_OK;
         }
 
+        if (opts.showVersion) {
+            System.out.println("SchedulerFiles  v" + new Updater().getCurrentVersion());
+            return EXIT_OK;
+        }
+
         // Validate paths
         Path source = Paths.get(opts.source);
         if (!Files.isDirectory(source)) {
@@ -45,8 +51,14 @@ public class Cli {
         }
         Path dest = Paths.get(opts.dest);
         if (!Files.isDirectory(dest)) {
-            System.err.println("Error: destination is not a valid directory: " + opts.dest);
-            return EXIT_ERROR;
+            // Create destination directory if it doesn't exist (consistent with GUI)
+            try {
+                Files.createDirectories(dest);
+                System.out.println("Created destination directory: " + dest);
+            } catch (IOException e) {
+                System.err.println("Error: could not create destination directory: " + dest);
+                return EXIT_ERROR;
+            }
         }
         if (source.toAbsolutePath().equals(dest.toAbsolutePath())) {
             System.err.println("Error: source and destination must be different directories");
@@ -96,6 +108,7 @@ public class Cli {
         out.println();
         out.println("Other:");
         out.println("  -h, --help                 Show this help and exit");
+        out.println("  -v, --version              Show version and exit");
         out.println();
         out.println("Examples:");
         out.println("  java -jar SchedulerFiles.jar -s /photos -d /backup --copy");
@@ -114,6 +127,7 @@ public class Cli {
         boolean compareContent;
         boolean verifyHash;
         boolean help;
+        boolean showVersion;
 
         /** Parse args. Returns false on error. */
         boolean parse(String[] args) {
@@ -122,6 +136,10 @@ public class Cli {
                     case "-h":
                     case "--help":
                         help = true;
+                        return true;
+                    case "-v":
+                    case "--version":
+                        showVersion = true;
                         return true;
                     case "-s":
                     case "--source":

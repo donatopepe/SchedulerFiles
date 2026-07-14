@@ -25,7 +25,6 @@ import org.netbeans.lib.awtextra.AbsoluteConstraints;
 
 public class SchedulerFiles extends javax.swing.JFrame {
 
-    private final String address = "dnt.ppe@gmail.com";
     private final String paypalme = "https://www.paypal.me/DonatoPepe";
     private final javax.swing.JCheckBox verifyHash = new javax.swing.JCheckBox("Verify SHA-256");
     private Thread workerThread;
@@ -40,10 +39,12 @@ public class SchedulerFiles extends javax.swing.JFrame {
         Logger logger = Logger.getLogger(SchedulerFiles.class.getName());
         OutputStream os = new TextAreaOutputStream(jTextLog);
         logger.addHandler(new TextAreaHandler(os));
+        // Create logs/ directory and log file there (keep CWD clean)
         try {
+            Files.createDirectories(Paths.get("logs"));
             Date date = new Date();
             SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH-mm-ss");
-            FileHandler fh = new FileHandler("SchedulerFiles " + dateFormat.format(date) + ".log");
+            FileHandler fh = new FileHandler("logs/SchedulerFiles " + dateFormat.format(date) + ".log");
             logger.addHandler(fh);
             fh.setFormatter(new SimpleFormatter());
             logger.info("Start");
@@ -338,6 +339,17 @@ public class SchedulerFiles extends javax.swing.JFrame {
             return;
         }
         if (!validateInput()) return;
+
+        // Confirm before starting
+        int confirm = JOptionPane.showConfirmDialog(this,
+            "Start " + (jCheckBoxCopia.isSelected() ? "copy" : "move")
+            + " from:\n  " + SourcePath.getText()
+            + "\nto:\n  " + DestinationPath.getText()
+            + "\n\nThis operation cannot be undone.",
+            "Confirm",
+            JOptionPane.OK_CANCEL_OPTION,
+            JOptionPane.WARNING_MESSAGE);
+        if (confirm != JOptionPane.OK_OPTION) return;
 
         Path source = Paths.get(SourcePath.getText());
         Path destination = Paths.get(DestinationPath.getText());

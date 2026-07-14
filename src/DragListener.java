@@ -19,10 +19,13 @@ public class DragListener implements DropTargetListener {
 
     @Override
     public void dragEnter(DropTargetDragEvent dtde) {
+        dtde.acceptDrag(DnDConstants.ACTION_COPY);
+        pathLabel.setBackground(new java.awt.Color(220, 240, 220));
     }
 
     @Override
     public void dragOver(DropTargetDragEvent dtde) {
+        dtde.acceptDrag(DnDConstants.ACTION_COPY);
     }
 
     @Override
@@ -31,6 +34,7 @@ public class DragListener implements DropTargetListener {
 
     @Override
     public void dragExit(DropTargetEvent dte) {
+        pathLabel.setBackground(java.awt.Color.WHITE);
     }
 
     @Override

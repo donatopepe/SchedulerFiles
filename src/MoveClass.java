@@ -5,15 +5,22 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.file.FileVisitOption;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.EnumSet;
 import java.util.GregorianCalendar;
+import java.util.HashSet;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.TreeSet;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -24,16 +31,14 @@ import javax.swing.JTextArea;
 public class MoveClass implements Runnable {
 
     private static final String TX_LOG_NAME = "_files_scheduler.log";
+    private static final int MAX_DEPTH = 100;
 
-    /** When true, Logger output is suppressed (used in CLI mode). */
     private static volatile boolean suppressLogger;
 
-    /** Call before run() to hide Logger console output. */
     public static void setSuppressLogger(boolean suppress) {
         suppressLogger = suppress;
         if (suppress) {
-            java.util.logging.Logger.getLogger(MoveClass.class.getName())
-                .setUseParentHandlers(false);
+            Logger.getLogger(MoveClass.class.getName()).setUseParentHandlers(false);
         }
     }
 
@@ -49,6 +54,7 @@ public class MoveClass implements Runnable {
     private final Calendar calendar = new GregorianCalendar();
     private volatile boolean stopRequested;
     private BufferedWriter txWriter;
+    private String cachedSourceHash;  // avoids double hash in skip+verify
 
     private final TreeSet<String> fileAccumulator = new TreeSet<>(new LengthFirstComparator());
 
@@ -119,60 +125,49 @@ public class MoveClass implements Runnable {
         }
     }
 
-    // ---- File comparison (byte-by-byte or hash) ----
+    // ---- File comparison ----
+
+    private String getSourceHash(Path file) throws IOException {
+        if (cachedSourceHash == null) {
+            cachedSourceHash = HashUtil.sha256(file);
+        }
+        return cachedSourceHash;
+    }
 
     private boolean filesAreIdentical(Path sourceFile, String destPath) throws IOException, InterruptedException {
         Path destFile = Paths.get(destPath);
-        if (!Files.exists(destFile)) {
-            return false;
-        }
-        if (Files.size(destFile) != Files.size(sourceFile)) {
-            return false;
-        }
+        if (!Files.exists(destFile)) return false;
+        if (Files.size(destFile) != Files.size(sourceFile)) return false;
 
         long start = System.nanoTime();
 
-        // Use hash comparison when verifyHash is enabled (faster, constant-time after hash)
         if (verifyHash) {
             try {
-                String srcHash = HashUtil.sha256(sourceFile);
+                String srcHash = getSourceHash(sourceFile);
                 String dstHash = HashUtil.sha256(destFile);
-                long elapsed = System.nanoTime() - start;
-                log("Hash compare: " + (elapsed / 1000000) + "ms  " + srcHash.substring(0, 12) + "...");
+                log("Hash compare: " + (System.nanoTime() - start) / 1000000 + "ms  " + srcHash.substring(0, 12) + "...");
                 return srcHash.equals(dstHash);
             } catch (IOException e) {
-                log("Hash compare error, falling back to byte compare: " + e.getMessage());
-                // fall through
+                log("Hash compare error, fallback to byte compare: " + e.getMessage());
             }
         }
 
-        // Byte-by-byte comparison via MappedByteBuffer
         try (FileChannel ch1 = new RandomAccessFile(sourceFile.toString(), "r").getChannel();
              FileChannel ch2 = new RandomAccessFile(destFile.toString(), "r").getChannel()) {
-
             long size = ch1.size();
             long offset = 0;
             long chunkSize = Math.min(size, Integer.MAX_VALUE);
-
             while (chunkSize > 0) {
                 MappedByteBuffer m1 = ch1.map(FileChannel.MapMode.READ_ONLY, offset, chunkSize);
                 MappedByteBuffer m2 = ch2.map(FileChannel.MapMode.READ_ONLY, offset, chunkSize);
-
                 for (int pos = 0; pos < chunkSize; pos++) {
-                    if (m1.get(pos) != m2.get(pos)) {
-                        return false;
-                    }
-                    if (isStopped()) {
-                        return false;
-                    }
+                    if (m1.get(pos) != m2.get(pos)) return false;
+                    if (isStopped()) return false;
                 }
-
                 offset += chunkSize;
                 chunkSize = Math.min(ch1.size() - offset, Integer.MAX_VALUE);
             }
-
-            long elapsed = System.nanoTime() - start;
-            log("Byte compare time: " + (elapsed / 1000000) + "ms");
+            log("Byte compare: " + (System.nanoTime() - start) / 1000000 + "ms");
             return true;
         } catch (IOException e) {
             log("Compare error: " + e.getMessage());
@@ -180,78 +175,84 @@ public class MoveClass implements Runnable {
         }
     }
 
-    // ---- File move/copy with hash verification & transaction log ----
+    // ---- File transfer with hash verification & transaction log ----
 
     private void transferFile(Path sourceFile, String destDir) throws IOException, InterruptedException {
+        cachedSourceHash = null;  // reset per file
+
         String name = sourceFile.getFileName().toString();
         String ext = "";
         String baseName = name;
-
         int dot = name.lastIndexOf(".");
         if (dot >= 0) {
             ext = name.substring(dot).toLowerCase();
             baseName = name.substring(0, dot);
         }
-
         long fileSize = Files.size(sourceFile);
 
-        // Check if identical file already exists
+        // Check duplicates using HashSet + HashMap (O(1) name lookup)
         boolean skip = false;
         String skipDestPath = null;
+
         if (compareByName || compareByContent) {
             File dir = new File(destDir);
             File[] existing = dir.listFiles();
+            HashSet<String> destNames = new HashSet<>();
+            Map<String, String> destPaths = new HashMap<>();
             if (existing != null) {
                 for (File f : existing) {
                     if (f.isFile()) {
-                        boolean same = false;
-                        if (!compareByContent && compareByName) {
-                            same = f.getName().equals(name);
-                        } else {
-                            same = filesAreIdentical(sourceFile, f.getAbsolutePath());
-                        }
-                        if (same) {
-                            skipDestPath = f.getAbsolutePath();
-                            log("Skipping identical: " + sourceFile + " == " + skipDestPath);
-                            skip = true;
-                            break;
-                        }
+                        destNames.add(f.getName());
+                        destPaths.put(f.getName(), f.getAbsolutePath());
+                    }
+                }
+            }
+
+            if (compareByName && !compareByContent) {
+                if (destNames.contains(name)) {
+                    skipDestPath = destPaths.get(name);
+                    skip = true;
+                }
+            } else if (compareByContent) {
+                for (Map.Entry<String, String> e : destPaths.entrySet()) {
+                    if (filesAreIdentical(sourceFile, e.getValue())) {
+                        skipDestPath = e.getValue();
+                        skip = true;
+                        break;
                     }
                 }
             }
         }
 
         if (skip) {
+            log("Skipping identical: " + sourceFile + " == " + skipDestPath);
             String hashInfo = "";
             if (verifyHash) {
-                try { hashInfo = "  H=" + HashUtil.sha256(sourceFile).substring(0, 16);
-                } catch (Exception ignored) {}
+                try { hashInfo = "  H=" + getSourceHash(sourceFile).substring(0, 16); }
+                catch (Exception ignored) {}
             }
             writeTx(txTimestamp() + "  SKIP  " + sourceFile + "  " + skipDestPath + "  " + fileSize + hashInfo);
             return;
         }
 
-        // Find unique name
+        // Find unique name using Path.resolve (safe path concatenation)
+        Path destDirPath = Paths.get(destDir);
         String suffix = "";
         int counter = 0;
-        Path targetPath = Paths.get(destDir + baseName + suffix + ext);
+        Path targetPath = destDirPath.resolve(baseName + suffix + ext);
         while (Files.exists(targetPath)) {
             counter++;
             suffix = " " + counter;
-            targetPath = Paths.get(destDir + baseName + suffix + ext);
+            targetPath = destDirPath.resolve(baseName + suffix + ext);
         }
 
-        // Compute source hash before operation (if verifyHash enabled)
+        // Compute source hash before operation
         String sourceHash = null;
         if (verifyHash) {
-            try {
-                sourceHash = HashUtil.sha256(sourceFile);
-            } catch (Exception e) {
-                log("Warning: could not hash source " + sourceFile + ": " + e.getMessage());
-            }
+            try { sourceHash = getSourceHash(sourceFile); }
+            catch (Exception e) { log("Warning: could not hash source: " + e.getMessage()); }
         }
 
-        // Perform copy or move
         String op = copyMode ? "COPY" : "MOVE";
         boolean success = false;
         if (copyMode) {
@@ -259,19 +260,14 @@ public class MoveClass implements Runnable {
                 Files.copy(sourceFile, targetPath, StandardCopyOption.COPY_ATTRIBUTES);
                 log("Copied: " + sourceFile + " -> " + targetPath);
                 success = true;
-            } catch (IOException ex) {
-                log("Copy failed: " + ex.getMessage());
-            }
+            } catch (IOException ex) { log("Copy failed: " + ex.getMessage()); }
         } else {
             try {
                 Files.move(sourceFile, targetPath);
                 log("Moved: " + sourceFile + " -> " + targetPath);
                 success = true;
-            } catch (IOException ex) {
-                log("Move failed: " + ex.getMessage());
-            }
+            } catch (IOException ex) { log("Move failed: " + ex.getMessage()); }
         }
-
         if (!success) return;
 
         // Verify hash on destination
@@ -285,27 +281,25 @@ public class MoveClass implements Runnable {
                 } else {
                     hashOk = false;
                     log("HASH MISMATCH! " + targetPath.getFileName()
-                        + "\n  source: " + sourceHash
-                        + "\n  dest:   " + destHash);
+                        + "\n  source: " + sourceHash + "\n  dest:   " + destHash);
                 }
             } catch (Exception e) {
-                log("Warning: could not hash destination " + targetPath + ": " + e.getMessage());
+                log("Warning: could not hash destination: " + e.getMessage());
             }
         }
 
-        // Write to transaction log
-        StringBuilder tx = new StringBuilder();
-        tx.append(txTimestamp()).append("  ").append(op);
-        tx.append("  ").append(sourceFile);
-        tx.append("  ").append(targetPath);
-        tx.append("  ").append(fileSize);
+        StringBuilder tx = new StringBuilder()
+            .append(txTimestamp()).append("  ").append(op)
+            .append("  ").append(sourceFile)
+            .append("  ").append(targetPath)
+            .append("  ").append(fileSize);
         if (sourceHash != null) tx.append("  H=").append(sourceHash.substring(0, 16));
         if (destHash != null) tx.append("  D=").append(destHash.substring(0, 16));
         if (!hashOk) tx.append("  ** HASH MISMATCH **");
         writeTx(tx.toString());
     }
 
-    private void ensureDirExists(String dirPath) throws IOException {
+    private void createDestDir(String dirPath) throws IOException {
         Files.createDirectories(Paths.get(dirPath));
     }
 
@@ -315,7 +309,6 @@ public class MoveClass implements Runnable {
         try {
             Path fileio = Paths.get(filePath);
             String name = fileio.getFileName().toString();
-
             BasicFileAttributes attrs = Files.readAttributes(fileio, BasicFileAttributes.class);
             calendar.setTimeInMillis(attrs.lastModifiedTime().toMillis());
             int year = calendar.get(Calendar.YEAR);
@@ -323,91 +316,73 @@ public class MoveClass implements Runnable {
 
             String dest;
             if (useScheduledTree) {
-                dest = destination.toString() + "/" + year + "/" + month;
+                dest = destination + "/" + year + "/" + month;
                 int dot = name.lastIndexOf(".");
-                if (dot >= 0) {
-                    dest += "/" + name.substring(dot + 1).toLowerCase();
-                }
+                if (dot >= 0) dest += "/" + name.substring(dot + 1).toLowerCase();
                 dest += "/";
                 log("(" + attrs.size() + " bytes, " + year + "-" + month + ")");
             } else {
-                // Keep original tree structure: dest + relative directory (without filename)
                 String relative = filePath.substring(source.toString().length());
                 int lastSep = relative.lastIndexOf(File.separatorChar);
-                // Also handle forward slash on Unix or mixed paths
-                if (lastSep < 0 && File.separatorChar != '/') {
-                    lastSep = relative.lastIndexOf('/');
-                }
+                if (lastSep < 0 && File.separatorChar != '/') lastSep = relative.lastIndexOf('/');
                 String dirPart = (lastSep >= 0) ? relative.substring(0, lastSep + 1) : File.separator;
-                dest = destination.toString() + dirPart;
+                dest = destination + dirPart;
             }
 
-            ensureDirExists(dest);
+            createDestDir(dest);
             transferFile(fileio, dest);
         } catch (IOException | InterruptedException ex) {
             Logger.getLogger(MoveClass.class.getName()).log(Level.SEVERE, "Error processing " + filePath, ex);
         }
     }
 
-    // ---- File listing ----
+    // ---- File listing (iterative walk, depth-limited, no recursive stack overflow) ----
 
     private void listFiles(File dir) {
         if (isStopped()) return;
 
         final Path dstAbs = destination.toAbsolutePath().normalize();
         final Path srcAbs = dir.toPath().toAbsolutePath().normalize();
+        boolean skipDest = srcAbs.equals(dstAbs) || srcAbs.startsWith(dstAbs) || dstAbs.startsWith(srcAbs);
 
-        // If destination is same as or inside source, skip recursive walk
-        // to avoid copying transaction log or other artifacts into themselves
-        boolean skipDest = srcAbs.equals(dstAbs) || srcAbs.startsWith(dstAbs)
-            || dstAbs.startsWith(srcAbs);
-
-        synchronized (fileAccumulator) {
-            fileAccumulator.clear();
-        }
+        synchronized (fileAccumulator) { fileAccumulator.clear(); }
 
         try {
-            java.nio.file.Files.walkFileTree(dir.toPath(),
-                new java.util.HashSet<java.nio.file.FileVisitOption>() {{
-                    add(java.nio.file.FileVisitOption.FOLLOW_LINKS);
-                }},
-                Integer.MAX_VALUE,
-                new java.nio.file.SimpleFileVisitor<java.nio.file.Path>() {
-
-                    @Override
-                    public java.nio.file.FileVisitResult preVisitDirectory(
-                            java.nio.file.Path dirPath,
-                            java.nio.file.attribute.BasicFileAttributes attrs) {
-                        if (isStopped())
-                            return java.nio.file.FileVisitResult.TERMINATE;
-                        // Skip destination directory if inside source
-                        if (skipDest) {
-                            Path abs = dirPath.toAbsolutePath().normalize();
-                            if (abs.equals(dstAbs) || abs.startsWith(dstAbs)) {
-                                return java.nio.file.FileVisitResult.SKIP_SUBTREE;
+            EnumSet<FileVisitOption> opts = EnumSet.of(FileVisitOption.FOLLOW_LINKS);
+            Files.walkFileTree(dir.toPath(), opts, MAX_DEPTH, new SimpleFileVisitor<Path>() {
+                @Override
+                public FileVisitResult preVisitDirectory(Path dirPath, BasicFileAttributes attrs) {
+                    if (isStopped()) return FileVisitResult.TERMINATE;
+                    if (skipDest) {
+                        Path abs = dirPath.toAbsolutePath().normalize();
+                        if (abs.equals(dstAbs) || abs.startsWith(dstAbs))
+                            return FileVisitResult.SKIP_SUBTREE;
+                    }
+                    return FileVisitResult.CONTINUE;
+                }
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                    if (isStopped()) return FileVisitResult.TERMINATE;
+                    // Skip symlinks that point back to already-visited dirs
+                    if (attrs.isSymbolicLink()) {
+                        try {
+                            Path real = file.toRealPath();
+                            if (real.startsWith(srcAbs) && !real.equals(file)) {
+                                log("Skipping symlink cycle: " + file);
+                                return FileVisitResult.CONTINUE;
                             }
+                        } catch (IOException e) {
+                            return FileVisitResult.CONTINUE;
                         }
-                        return java.nio.file.FileVisitResult.CONTINUE;
                     }
-
-                    @Override
-                    public java.nio.file.FileVisitResult visitFile(
-                            java.nio.file.Path file,
-                            java.nio.file.attribute.BasicFileAttributes attrs) {
-                        if (isStopped())
-                            return java.nio.file.FileVisitResult.TERMINATE;
-                        synchronized (fileAccumulator) {
-                            fileAccumulator.add(file.toString());
-                        }
-                        return java.nio.file.FileVisitResult.CONTINUE;
-                    }
-
-                    @Override
-                    public java.nio.file.FileVisitResult visitFileFailed(
-                            java.nio.file.Path file, IOException exc) {
-                        return java.nio.file.FileVisitResult.CONTINUE;
-                    }
-                });
+                    synchronized (fileAccumulator) { fileAccumulator.add(file.toString()); }
+                    return FileVisitResult.CONTINUE;
+                }
+                @Override
+                public FileVisitResult visitFileFailed(Path file, IOException exc) {
+                    return FileVisitResult.CONTINUE;
+                }
+            });
         } catch (IOException e) {
             log("Error walking files: " + e.getMessage());
         }
@@ -418,10 +393,8 @@ public class MoveClass implements Runnable {
     @Override
     public void run() {
         try {
-            textlog.setText("");
             log("===== START =====");
 
-            // Open transaction log in destination directory
             try {
                 openTxLog();
                 writeTx("# " + txTimestamp() + "  Session start  " + (copyMode ? "COPY" : "MOVE")
@@ -430,14 +403,9 @@ public class MoveClass implements Runnable {
                 log("Warning: could not create transaction log: " + e.getMessage());
             }
 
-            synchronized (fileAccumulator) {
-                fileAccumulator.clear();
-            }
             listFiles(source.toFile());
             int totalFiles;
-            synchronized (fileAccumulator) {
-                totalFiles = fileAccumulator.size();
-            }
+            synchronized (fileAccumulator) { totalFiles = fileAccumulator.size(); }
             log("Found " + totalFiles + " files to process");
 
             int processed = 0;
@@ -462,10 +430,7 @@ public class MoveClass implements Runnable {
         } finally {
             closeTxLog();
             Logger log = Logger.getLogger(MoveClass.class.getName());
-            for (Handler h : log.getHandlers()) {
-                h.close();
-                log.removeHandler(h);
-            }
+            for (Handler h : log.getHandlers()) { h.close(); log.removeHandler(h); }
         }
     }
 }

@@ -74,6 +74,7 @@ public class Updater {
             conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
             conn.setRequestProperty("Accept", "application/json");
+            conn.setRequestProperty("User-Agent", "SchedulerFiles/" + currentVersion);
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
 
