@@ -42,9 +42,7 @@ jobs:
           cp build/classes/about.html build/classes/about-en.html build/jar/
           mkdir -p build/jar/icon
           cp build/classes/icon/schedulerfiles.png build/classes/icon/schedulerfiles.ico build/jar/icon/
-          cd build/jar
-          jar cfm ../../dist/SchedulerFiles.jar ../../build/Manifest.txt *.class about.html about-en.html icon/schedulerfiles.png icon/schedulerfiles.ico lib/AbsoluteLayout.jar
-          cd ../..
+          jar cfm dist/SchedulerFiles.jar build/Manifest.txt -C build/jar .
 
       - name: Upload JAR as artifact
         uses: actions/upload-artifact@v4
