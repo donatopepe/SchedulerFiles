@@ -18,7 +18,8 @@ Java Swing and command-line utility for safe file copy/move operations.
 
 - Runtime: JRE 8+
 - Integrity: SHA-256 is enabled by default; no faster algorithm with comparable collision resistance is available in the standard Java 8 runtime.
-- Build: JDK 8+ (`--release 8` requires JDK 9+)
+- Build: JDK 8+; project targets Java 8 bytecode
+- Release JAR: compiled with `javac --release 8` and embeds `AbsoluteLayout.jar`
 - Bundled dependency: `dist/lib/AbsoluteLayout.jar`
 
 ## Run
@@ -27,6 +28,9 @@ Java Swing and command-line utility for safe file copy/move operations.
 
 ```bash
 java -jar dist/SchedulerFiles.jar
+
+The release JAR is self-contained and requires only Java 8+; no external
+classpath or `dist/lib` folder is needed.
 ```
 
 ### CLI
