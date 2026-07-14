@@ -88,9 +88,9 @@ public class SchedulerFiles extends javax.swing.JFrame {
         // Check for updates in background
         checkForUpdates();
 
-        // Verify hash checkbox
+        // Add verifyHash checkbox inside jPanel1 (second row)
         verifyHash.setFont(new java.awt.Font("Arial", 0, 12));
-        getContentPane().add(verifyHash, new org.netbeans.lib.awtextra.AbsoluteConstraints(400, 160, 160, 25));
+        jPanel1.add(verifyHash, new org.netbeans.lib.awtextra.AbsoluteConstraints(10, 30, -1, -1));
 
         // Browse buttons
         addBrowseButtons();
@@ -272,15 +272,15 @@ public class SchedulerFiles extends javax.swing.JFrame {
         comparefile.setText("Compare file content");
         jPanel1.add(comparefile, new org.netbeans.lib.awtextra.AbsoluteConstraints(10, 10, -1, -1));
 
-        comparename.setText("Compare file name");
+        comparename.setText("Compare by name");
         comparename.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 comparenameActionPerformed(evt);
             }
         });
-        jPanel1.add(comparename, new org.netbeans.lib.awtextra.AbsoluteConstraints(190, 10, -1, -1));
+        jPanel1.add(comparename, new org.netbeans.lib.awtextra.AbsoluteConstraints(140, 10, -1, -1));
 
-        getContentPane().add(jPanel1, new org.netbeans.lib.awtextra.AbsoluteConstraints(10, 160, 350, 40));
+        getContentPane().add(jPanel1, new org.netbeans.lib.awtextra.AbsoluteConstraints(10, 160, 350, 60));
 
         pack();
         setLocationRelativeTo(null);
@@ -460,12 +460,8 @@ public class SchedulerFiles extends javax.swing.JFrame {
 
     public static void main(String args[]) {
         try {
-            for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
-                if ("Nimbus".equals(info.getName())) {
-                    javax.swing.UIManager.setLookAndFeel(info.getClassName());
-                    break;
-                }
-            }
+            javax.swing.UIManager.setLookAndFeel(
+                javax.swing.UIManager.getSystemLookAndFeelClassName());
         } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | javax.swing.UnsupportedLookAndFeelException ex) {
             java.util.logging.Logger.getLogger(SchedulerFiles.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         }
