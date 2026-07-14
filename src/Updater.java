@@ -9,10 +9,6 @@ import java.net.URL;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-/**
- * Checks GitHub for newer releases and notifies the user.
- * Current version is read from JAR manifest (Implementation-Version).
- */
 public class Updater {
 
     private static final String REPO = "donatopepe/SchedulerFiles";
@@ -21,25 +17,28 @@ public class Updater {
     private static final Logger LOG = Logger.getLogger(Updater.class.getName());
 
     private final String currentVersion;
+    private final String apiUrl;  // overridable for testing
 
     public Updater() {
-        String v = getClass().getPackage().getImplementationVersion();
-        this.currentVersion = (v != null) ? v : "0.0.0";
+        this(API_URL);
     }
 
-    /** Returns current version string (from manifest or "0.0.0" fallback). */
+    /** Package-private: allows injecting a custom API URL (e.g. local test server). */
+    Updater(String apiUrl) {
+        String v = getClass().getPackage().getImplementationVersion();
+        this.currentVersion = (v != null) ? v : "0.0.0";
+        this.apiUrl = apiUrl;
+    }
+
     public String getCurrentVersion() {
         return currentVersion;
     }
 
-    /**
-     * Checks GitHub for the latest release version.
-     * @return latest version tag (e.g. "v1.2.3") or null on error / no internet
-     */
     public String fetchLatestVersion() {
+        HttpURLConnection conn = null;
         try {
-            URL url = new URI(API_URL).toURL();
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            URL url = new URI(apiUrl).toURL();
+            conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
             conn.setRequestProperty("Accept", "application/json");
             conn.setConnectTimeout(5000);
@@ -59,22 +58,18 @@ public class Updater {
                 while ((line = br.readLine()) != null) {
                     json.append(line);
                 }
-
                 return parseTagName(json.toString());
             }
         } catch (IOException | URISyntaxException e) {
-            LOG.log(Level.FINE, "Update check failed", e);
+            LOG.log(Level.FINE, "Update check failed: " + e.getMessage(), e);
             return null;
+        } finally {
+            if (conn != null) conn.disconnect();
         }
     }
 
-    /**
-     * Extracts "tag_name" from a GitHub API release JSON.
-     * Simple parser that works with the expected format — no JSON lib needed.
-     */
     static String parseTagName(String json) {
         if (json == null) return null;
-        // Look for: "tag_name":"v1.2.3"
         String key = "\"tag_name\":\"";
         int idx = json.indexOf(key);
         if (idx < 0) return null;
@@ -84,14 +79,9 @@ public class Updater {
         return json.substring(idx, end);
     }
 
-    /**
-     * Compares two version strings (e.g. "v1.0.0" vs "v1.2.3").
-     * Returns positive if latest > current, negative if latest < current, 0 if equal.
-     */
     public static int compareVersions(String current, String latest) {
         String[] curParts = current.replaceAll("^v", "").split("\\.");
         String[] latParts = latest.replaceAll("^v", "").split("\\.");
-
         int len = Math.max(curParts.length, latParts.length);
         for (int i = 0; i < len; i++) {
             int c = (i < curParts.length) ? parseIntSafe(curParts[i], 0) : 0;
@@ -105,12 +95,16 @@ public class Updater {
         try { return Integer.parseInt(s); } catch (NumberFormatException e) { return def; }
     }
 
-    /** Opens the GitHub releases page in the default browser. */
     public static void openReleasesPage() {
         try {
             Desktop.getDesktop().browse(new URI(RELEASE_URL));
         } catch (IOException | URISyntaxException e) {
             LOG.log(Level.WARNING, "Could not open releases page", e);
         }
+    }
+
+    /** For testing: the default API URL constant. */
+    static String getDefaultApiUrl() {
+        return API_URL;
     }
 }
