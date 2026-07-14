@@ -31,6 +31,21 @@ public final class MirrorService {
     /** Synchronizes mirror; copyReplicaExtras copies Dest 2 extras into primary. */
     public void synchronize(Path primary, Path replica, boolean removeStaleEntries,
                             boolean copyReplicaExtras) throws IOException {
+        DestinationLock primaryLock = DestinationLock.acquire(primary);
+        try {
+            DestinationLock replicaLock = DestinationLock.acquire(replica);
+            try {
+                synchronizeLocked(primary, replica, removeStaleEntries, copyReplicaExtras);
+            } finally {
+                replicaLock.close();
+            }
+        } finally {
+            primaryLock.close();
+        }
+    }
+
+    private void synchronizeLocked(Path primary, Path replica, boolean removeStaleEntries,
+                                   boolean copyReplicaExtras) throws IOException {
         if (copyReplicaExtras) copyExtrasToPrimary(primary, replica);
         if (removeStaleEntries) removeStale(primary, replica);
         Files.walkFileTree(primary, new SimpleFileVisitor<Path>() {
@@ -44,7 +59,8 @@ public final class MirrorService {
             @Override
             public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
                     throws IOException {
-                if (Files.isSymbolicLink(file) || !attrs.isRegularFile()) {
+                if (Files.isSymbolicLink(file) || !attrs.isRegularFile()
+                        || file.getFileName().toString().equals(".schedulerfiles.lock")) {
                     return FileVisitResult.CONTINUE;
                 }
                 Path target = replica.resolve(primary.relativize(file));
@@ -59,6 +75,9 @@ public final class MirrorService {
         if (!isSynchronized(primary, replica, removeStaleEntries || copyReplicaExtras)) {
             throw new IOException("mirror parity check failed");
         }
+        Set<Path> mirroredFiles = files(primary);
+        new MirrorManifest().write(primary, mirroredFiles);
+        new MirrorManifest().write(replica, mirroredFiles);
     }
 
     public boolean isSynchronized(Path primary, Path replica) throws IOException {
@@ -97,7 +116,8 @@ public final class MirrorService {
         Files.walkFileTree(replica, new SimpleFileVisitor<Path>() {
             @Override
             public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                if (!Files.exists(primary.resolve(replica.relativize(file)))) Files.delete(file);
+                if (!file.getFileName().toString().equals(".schedulerfiles.lock")
+                        && !Files.exists(primary.resolve(replica.relativize(file)))) Files.delete(file);
                 return FileVisitResult.CONTINUE;
             }
 
@@ -117,7 +137,8 @@ public final class MirrorService {
         Files.walkFileTree(root, new SimpleFileVisitor<Path>() {
             @Override
             public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                if (attrs.isRegularFile() && !Files.isSymbolicLink(file)) {
+                if (attrs.isRegularFile() && !Files.isSymbolicLink(file)
+                        && !file.getFileName().toString().equals(".schedulerfiles.lock")) {
                     result.add(root.relativize(file));
                 }
                 return FileVisitResult.CONTINUE;
