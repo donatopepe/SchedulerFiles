@@ -48,6 +48,14 @@ cp src/about.html /tmp/schedulerfiles-classes/about.html
 
 Nota: `javac -cp` deve usare `dist/lib/AbsoluteLayout.jar`, non `src/lib`.
 
+## Replica doppia destinazione
+
+- [x] Aggiungere `--dest2` opzionale in CLI.
+- [x] Replicare file in seconda destinazione solo dopo prima copia riuscita.
+- [x] Rimuovere file obsoleti da seconda destinazione per mantenerla gemella.
+- [x] Bloccare combinazione `--dest2` + `--move`.
+- [x] Aggiungere test replica e validazione opzioni.
+
 ## Ottimizzazioni performance
 
 - [x] Indicizzare destinazione una volta per operazione, evitando `listFiles()` per ogni file.
