@@ -43,8 +43,11 @@ public class DragListener implements DropTargetListener {
             try {
                 if (f.isFlavorJavaFileListType()) {
                     List<File> files = (List<File>) t.getTransferData(f);
-                    if (!files.isEmpty()) {
-                        pathLabel.setText(files.get(0).getPath());
+                    for (File file : files) {
+                        if (file.isDirectory()) {
+                            pathLabel.setText(file.getAbsolutePath());
+                            break; // first directory found
+                        }
                     }
                 }
             } catch (Exception ex) {

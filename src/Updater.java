@@ -96,6 +96,10 @@ public class Updater {
     }
 
     public static void openReleasesPage() {
+        if (!Desktop.isDesktopSupported()) {
+            LOG.warning("Cannot open browser: Desktop not supported");
+            return;
+        }
         try {
             Desktop.getDesktop().browse(new URI(RELEASE_URL));
         } catch (IOException | URISyntaxException e) {
