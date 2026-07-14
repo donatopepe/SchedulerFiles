@@ -1,7 +1,5 @@
 import java.awt.Cursor;
 import java.awt.Desktop;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
@@ -23,6 +21,7 @@ import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
 import javax.swing.Timer;
 import javax.swing.text.DefaultCaret;
+import org.netbeans.lib.awtextra.AbsoluteConstraints;
 
 public class SchedulerFiles extends javax.swing.JFrame {
 
@@ -38,7 +37,6 @@ public class SchedulerFiles extends javax.swing.JFrame {
     }
 
     private void postInit() {
-        // Logger setup
         Logger logger = Logger.getLogger(SchedulerFiles.class.getName());
         OutputStream os = new TextAreaOutputStream(jTextLog);
         logger.addHandler(new TextAreaHandler(os));
@@ -53,14 +51,11 @@ public class SchedulerFiles extends javax.swing.JFrame {
             Logger.getLogger(SchedulerFiles.class.getName()).log(Level.SEVERE, null, ex);
         }
 
-        // Sync button text
         updateButtonLabel();
 
-        // Auto-scroll log
         DefaultCaret caret = (DefaultCaret) jTextLog.getCaret();
         caret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
 
-        // PayPal link
         developer.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         developer.addMouseListener(new MouseAdapter() {
             @Override
@@ -73,7 +68,6 @@ public class SchedulerFiles extends javax.swing.JFrame {
             }
         });
 
-        // Info link
         info.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         info.addMouseListener(new MouseAdapter() {
             @Override
@@ -82,23 +76,17 @@ public class SchedulerFiles extends javax.swing.JFrame {
             }
         });
 
-        // Drag & drop
         connectToDragDrop();
-
-        // Check for updates in background
         checkForUpdates();
 
-        // Add verifyHash checkbox inside jPanel1 (second row)
+        // Verify hash inside compare panel (second row)
         verifyHash.setFont(new java.awt.Font("Arial", 0, 12));
-        jPanel1.add(verifyHash, new org.netbeans.lib.awtextra.AbsoluteConstraints(10, 30, -1, -1));
+        jPanel1.add(verifyHash, new AbsoluteConstraints(10, 30, -1, -1));
 
-        // Browse buttons
         addBrowseButtons();
 
-        // Periodic UI refresh
         Timer timer = new Timer(500, e -> {
             if (currentTask != null && workerThread != null && workerThread.isAlive()) {
-                // progress updated by MoveClass directly via avanzamento label
             }
         });
         timer.start();
@@ -108,12 +96,12 @@ public class SchedulerFiles extends javax.swing.JFrame {
         javax.swing.JButton btnSrc = new javax.swing.JButton("Browse");
         btnSrc.setFont(new java.awt.Font("Arial", 0, 12));
         btnSrc.addActionListener(e -> chooseDirectory(SourcePath));
-        getContentPane().add(btnSrc, new org.netbeans.lib.awtextra.AbsoluteConstraints(630, 20, 80, 25));
+        getContentPane().add(btnSrc, new AbsoluteConstraints(625, 18, 80, 25));
 
         javax.swing.JButton btnDst = new javax.swing.JButton("Browse");
         btnDst.setFont(new java.awt.Font("Arial", 0, 12));
         btnDst.addActionListener(e -> chooseDirectory(DestinationPath));
-        getContentPane().add(btnDst, new org.netbeans.lib.awtextra.AbsoluteConstraints(630, 50, 80, 25));
+        getContentPane().add(btnDst, new AbsoluteConstraints(625, 46, 80, 25));
     }
 
     private void chooseDirectory(javax.swing.JTextField targetField) {
@@ -133,8 +121,9 @@ public class SchedulerFiles extends javax.swing.JFrame {
         }
     }
 
+    // ---- NetBeans generated UI ----
+
     @SuppressWarnings("unchecked")
-    // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
         GroupTree = new javax.swing.ButtonGroup();
@@ -159,8 +148,8 @@ public class SchedulerFiles extends javax.swing.JFrame {
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setTitle("Files scheduler");
-        setFont(new java.awt.Font("Arial", 0, 10)); // NOI18N
-        setResizable(false);
+        setFont(new java.awt.Font("Arial", 0, 10));
+        setResizable(true);
         addWindowListener(new java.awt.event.WindowAdapter() {
             public void windowClosing(java.awt.event.WindowEvent evt) {
                 formWindowClosing(evt);
@@ -168,123 +157,98 @@ public class SchedulerFiles extends javax.swing.JFrame {
         });
         getContentPane().setLayout(new org.netbeans.lib.awtextra.AbsoluteLayout());
 
-        jTextLog.setEditable(false);
-        jTextLog.setColumns(20);
-        jTextLog.setFont(new java.awt.Font("Arial", 0, 12)); // NOI18N
-        jTextLog.setRows(5);
-        jScrollPane1.setViewportView(jTextLog);
+        //--- Row 1: Source path ---
+        jLabel1.setFont(new java.awt.Font("Arial", 0, 14));
+        jLabel1.setText("Source");
+        getContentPane().add(jLabel1, new AbsoluteConstraints(10, 20, -1, -1));
 
-        getContentPane().add(jScrollPane1, new org.netbeans.lib.awtextra.AbsoluteConstraints(10, 210, 710, 190));
+        SourcePath.setFont(new java.awt.Font("Arial", 0, 12));
+        getContentPane().add(SourcePath, new AbsoluteConstraints(85, 18, 530, 25));
 
-        jLabel1.setFont(new java.awt.Font("Arial", 0, 18)); // NOI18N
-        jLabel1.setText("Source Dir");
-        getContentPane().add(jLabel1, new org.netbeans.lib.awtextra.AbsoluteConstraints(10, 20, -1, -1));
+        //--- Row 2: Destination path ---
+        jLabel3.setFont(new java.awt.Font("Arial", 0, 14));
+        jLabel3.setText("Dest");
+        getContentPane().add(jLabel3, new AbsoluteConstraints(10, 48, -1, -1));
 
-        jButtonScheda.setFont(new java.awt.Font("Arial", 0, 12)); // NOI18N
-        jButtonScheda.setText("Move");
-        jButtonScheda.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jButtonSchedaActionPerformed(evt);
-            }
-        });
-        getContentPane().add(jButtonScheda, new org.netbeans.lib.awtextra.AbsoluteConstraints(470, 120, 160, -1));
+        DestinationPath.setFont(new java.awt.Font("Arial", 0, 12));
+        getContentPane().add(DestinationPath, new AbsoluteConstraints(85, 46, 530, 25));
 
-        jLabel3.setFont(new java.awt.Font("Arial", 0, 18)); // NOI18N
-        jLabel3.setText("Destination Dir");
-        getContentPane().add(jLabel3, new org.netbeans.lib.awtextra.AbsoluteConstraints(10, 50, -1, -1));
-
-        jButtonCancel.setFont(new java.awt.Font("Arial", 0, 12)); // NOI18N
-        jButtonCancel.setText("Cancel");
-        jButtonCancel.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jButtonCancelActionPerformed(evt);
-            }
-        });
-        getContentPane().add(jButtonCancel, new org.netbeans.lib.awtextra.AbsoluteConstraints(630, 120, 160, -1));
-
-        jCheckBoxCopia.setFont(new java.awt.Font("Arial", 0, 12)); // NOI18N
-        jCheckBoxCopia.setSelected(true);
-        jCheckBoxCopia.setText("Copy");
-        jCheckBoxCopia.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jCheckBoxCopiaActionPerformed(evt);
-            }
-        });
-        getContentPane().add(jCheckBoxCopia, new org.netbeans.lib.awtextra.AbsoluteConstraints(400, 120, 70, -1));
-
-        SourcePath.setFont(new java.awt.Font("Arial", 0, 12)); // NOI18N
-        SourcePath.setText("Source path");
-        SourcePath.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                SourcePathActionPerformed(evt);
-            }
-        });
-        getContentPane().add(SourcePath, new org.netbeans.lib.awtextra.AbsoluteConstraints(100, 20, 520, 25));
-
-        DestinationPath.setFont(new java.awt.Font("Arial", 0, 12)); // NOI18N
-        DestinationPath.setText("Destination path");
-        DestinationPath.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                DestinationPathActionPerformed(evt);
-            }
-        });
-        getContentPane().add(DestinationPath, new org.netbeans.lib.awtextra.AbsoluteConstraints(100, 50, 520, 25));
-
-        developer.setFont(new java.awt.Font("Arial", 0, 12)); // NOI18N
-        developer.setForeground(new java.awt.Color(0, 0, 204));
-        developer.setText("Donate to developer");
-        getContentPane().add(developer, new org.netbeans.lib.awtextra.AbsoluteConstraints(400, 430, -1, -1));
-
-        info.setFont(new java.awt.Font("Arial", 0, 12)); // NOI18N
-        info.setForeground(new java.awt.Color(0, 0, 204));
-        info.setText("Info");
-        getContentPane().add(info, new org.netbeans.lib.awtextra.AbsoluteConstraints(10, 430, -1, -1));
-
-        avanzamento.setFont(new java.awt.Font("Arial", 0, 12)); // NOI18N
+        //--- Row 3: Progress bar (full width) ---
+        avanzamento.setFont(new java.awt.Font("Arial", 0, 12));
         avanzamento.setText(" ");
-        getContentPane().add(avanzamento, new org.netbeans.lib.awtextra.AbsoluteConstraints(400, 80, 330, 20));
+        getContentPane().add(avanzamento, new AbsoluteConstraints(10, 80, 780, 20));
 
+        //--- Row 4: Tree panel (left) + Mode/Start/Cancel (right) ---
         jPanelGerarchia.setBorder(javax.swing.BorderFactory.createTitledBorder("Tree structure"));
         jPanelGerarchia.setLayout(new org.netbeans.lib.awtextra.AbsoluteLayout());
 
-        GroupTree.add(ScheduledTree);
-        ScheduledTree.setFont(new java.awt.Font("Arial", 0, 12)); // NOI18N
-        ScheduledTree.setText("Scheduled: by year/month/extension");
-        ScheduledTree.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                ScheduledTreeActionPerformed(evt);
-            }
-        });
-        jPanelGerarchia.add(ScheduledTree, new org.netbeans.lib.awtextra.AbsoluteConstraints(10, 30, 330, -1));
-
         GroupTree.add(OriginalTree);
-        OriginalTree.setFont(new java.awt.Font("Arial", 0, 12)); // NOI18N
+        OriginalTree.setFont(new java.awt.Font("Arial", 0, 12));
         OriginalTree.setSelected(true);
         OriginalTree.setText("Original Tree");
-        jPanelGerarchia.add(OriginalTree, new org.netbeans.lib.awtextra.AbsoluteConstraints(10, 10, -1, -1));
+        jPanelGerarchia.add(OriginalTree, new AbsoluteConstraints(10, 18, -1, -1));
 
-        getContentPane().add(jPanelGerarchia, new org.netbeans.lib.awtextra.AbsoluteConstraints(10, 92, 350, 68));
+        GroupTree.add(ScheduledTree);
+        ScheduledTree.setFont(new java.awt.Font("Arial", 0, 12));
+        ScheduledTree.setText("Scheduled: by year/month/extension");
+        ScheduledTree.addActionListener(e -> ScheduledTreeActionPerformed(e));
+        jPanelGerarchia.add(ScheduledTree, new AbsoluteConstraints(10, 38, 310, -1));
 
-        jPanel1.setBackground(new java.awt.Color(204, 204, 204));
+        getContentPane().add(jPanelGerarchia, new AbsoluteConstraints(10, 108, 340, 60));
+
+        // Right side: Mode + buttons
+        jCheckBoxCopia.setFont(new java.awt.Font("Arial", 0, 12));
+        jCheckBoxCopia.setSelected(true);
+        jCheckBoxCopia.setText("Copy");
+        jCheckBoxCopia.addActionListener(e -> jCheckBoxCopiaActionPerformed(e));
+        getContentPane().add(jCheckBoxCopia, new AbsoluteConstraints(370, 110, 80, 26));
+
+        jButtonScheda.setFont(new java.awt.Font("Arial", 0, 12));
+        jButtonScheda.setText("Start");
+        jButtonScheda.addActionListener(e -> jButtonSchedaActionPerformed(e));
+        getContentPane().add(jButtonScheda, new AbsoluteConstraints(460, 110, 150, 26));
+
+        jButtonCancel.setFont(new java.awt.Font("Arial", 0, 12));
+        jButtonCancel.setText("Cancel");
+        jButtonCancel.addActionListener(e -> jButtonCancelActionPerformed(e));
+        getContentPane().add(jButtonCancel, new AbsoluteConstraints(620, 110, 140, 26));
+
+        //--- Row 5: Compare options panel ---
+        jPanel1.setBackground(new java.awt.Color(220, 220, 220));
         jPanel1.setLayout(new org.netbeans.lib.awtextra.AbsoluteLayout());
 
         comparefile.setSelected(true);
-        comparefile.setText("Compare file content");
-        jPanel1.add(comparefile, new org.netbeans.lib.awtextra.AbsoluteConstraints(10, 10, -1, -1));
+        comparefile.setText("Compare by content");
+        jPanel1.add(comparefile, new AbsoluteConstraints(10, 10, -1, -1));
 
         comparename.setText("Compare by name");
-        comparename.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                comparenameActionPerformed(evt);
-            }
-        });
-        jPanel1.add(comparename, new org.netbeans.lib.awtextra.AbsoluteConstraints(140, 10, -1, -1));
+        comparename.addActionListener(e -> comparenameActionPerformed(e));
+        jPanel1.add(comparename, new AbsoluteConstraints(150, 10, -1, -1));
 
-        getContentPane().add(jPanel1, new org.netbeans.lib.awtextra.AbsoluteConstraints(10, 168, 350, 60));
+        getContentPane().add(jPanel1, new AbsoluteConstraints(10, 178, 340, 60));
+
+        //--- Row 6: Log area ---
+        jTextLog.setEditable(false);
+        jTextLog.setColumns(20);
+        jTextLog.setFont(new java.awt.Font("Monospaced", 0, 11));
+        jTextLog.setRows(5);
+        jScrollPane1.setViewportView(jTextLog);
+        getContentPane().add(jScrollPane1, new AbsoluteConstraints(10, 248, 780, 190));
+
+        //--- Row 7: Footer ---
+        info.setFont(new java.awt.Font("Arial", 0, 12));
+        info.setForeground(new java.awt.Color(0, 0, 204));
+        info.setText("Info");
+        getContentPane().add(info, new AbsoluteConstraints(10, 448, -1, -1));
+
+        developer.setFont(new java.awt.Font("Arial", 0, 12));
+        developer.setForeground(new java.awt.Color(0, 0, 204));
+        developer.setText("Donate to developer");
+        getContentPane().add(developer, new AbsoluteConstraints(640, 448, -1, -1));
 
         pack();
         setLocationRelativeTo(null);
-    }// </editor-fold>//GEN-END:initComponents
+    }
 
     private void connectToDragDrop() {
         new java.awt.dnd.DropTarget(SourcePath, new DragListener(SourcePath));
@@ -295,22 +259,20 @@ public class SchedulerFiles extends javax.swing.JFrame {
         new Thread(() -> {
             Updater updater = new Updater();
             String latest = updater.fetchLatestVersion();
-            if (latest == null) return; // no internet / error
+            if (latest == null) return;
 
             String current = updater.getCurrentVersion();
             if (Updater.compareVersions(current, latest) > 0) {
-                int choice = javax.swing.JOptionPane.showOptionDialog(
-                    this,
-                    "<html>A new version of SchedulerFiles is available!<br>"
+                int choice = JOptionPane.showOptionDialog(this,
+                    "<html>A new version is available!<br>"
                     + "Current: <b>" + current + "</b><br>"
                     + "Latest:  <b>" + latest + "</b><br><br>"
                     + "Open the download page?</html>",
                     "Update Available",
-                    javax.swing.JOptionPane.YES_NO_OPTION,
-                    javax.swing.JOptionPane.INFORMATION_MESSAGE,
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.INFORMATION_MESSAGE,
                     null, new String[]{"Download", "Later"}, "Download");
-
-                if (choice == javax.swing.JOptionPane.YES_OPTION) {
+                if (choice == JOptionPane.YES_OPTION) {
                     Updater.openReleasesPage();
                 }
             }
@@ -318,17 +280,12 @@ public class SchedulerFiles extends javax.swing.JFrame {
     }
 
     private void updateButtonLabel() {
-        if (jCheckBoxCopia.isSelected()) {
-            jButtonScheda.setText("Copy");
-        } else {
-            jButtonScheda.setText("Move");
-        }
+        jButtonScheda.setText(jCheckBoxCopia.isSelected() ? "Start Copy" : "Start Move");
     }
 
     private boolean validateInput() {
         String src = SourcePath.getText();
         String dst = DestinationPath.getText();
-
         if (src == null || src.trim().isEmpty()) {
             jTextLog.setText("Error: source directory not specified");
             return false;
@@ -337,35 +294,30 @@ public class SchedulerFiles extends javax.swing.JFrame {
             jTextLog.setText("Error: destination directory not specified");
             return false;
         }
-
         Path sourcePath = Paths.get(src);
         if (!Files.isDirectory(sourcePath)) {
             jTextLog.setText("Error: source is not a valid directory\n" + src);
             return false;
         }
-
         Path destPath = Paths.get(dst);
         if (!Files.isDirectory(destPath)) {
             jTextLog.setText("Error: destination is not a valid directory\n" + dst);
             return false;
         }
-
         if (sourcePath.toAbsolutePath().equals(destPath.toAbsolutePath())) {
             jTextLog.setText("Error: source and destination must be different directories");
             return false;
         }
-
         return true;
     }
 
     // ---- Event handlers ----
 
-    private void jButtonSchedaActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButtonSchedaActionPerformed
+    private void jButtonSchedaActionPerformed(java.awt.event.ActionEvent evt) {
         if (workerThread != null && workerThread.isAlive()) {
-            jTextLog.setText("Operation already in progress. Click Cancel to stop it.");
+            jTextLog.setText("Operation already in progress. Click Cancel to stop.");
             return;
         }
-
         if (!validateInput()) return;
 
         Path source = Paths.get(SourcePath.getText());
@@ -384,49 +336,39 @@ public class SchedulerFiles extends javax.swing.JFrame {
 
         jButtonScheda.setEnabled(false);
         jTextLog.setText("Starting...\n");
-    }//GEN-LAST:event_jButtonSchedaActionPerformed
+    }
 
-    private void jButtonCancelActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButtonCancelActionPerformed
-        if (currentTask != null) {
-            currentTask.requestStop();
-        }
+    private void jButtonCancelActionPerformed(java.awt.event.ActionEvent evt) {
+        if (currentTask != null) currentTask.requestStop();
         if (workerThread != null && workerThread.isAlive()) {
             workerThread.interrupt();
             jTextLog.append("\nCancellation requested...\n");
         } else {
             jTextLog.setText("No active operation to cancel");
         }
-    }//GEN-LAST:event_jButtonCancelActionPerformed
+    }
 
-    private void jCheckBoxCopiaActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jCheckBoxCopiaActionPerformed
+    private void jCheckBoxCopiaActionPerformed(java.awt.event.ActionEvent evt) {
         updateButtonLabel();
-    }//GEN-LAST:event_jCheckBoxCopiaActionPerformed
+    }
 
-    private void SourcePathActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_SourcePathActionPerformed
+    private void SourcePathActionPerformed(java.awt.event.ActionEvent evt) {
         chooseDirectory(SourcePath);
-    }//GEN-LAST:event_SourcePathActionPerformed
+    }
 
-    private void DestinationPathActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_DestinationPathActionPerformed
+    private void DestinationPathActionPerformed(java.awt.event.ActionEvent evt) {
         chooseDirectory(DestinationPath);
-    }//GEN-LAST:event_DestinationPathActionPerformed
+    }
 
-    private void ScheduledTreeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_ScheduledTreeActionPerformed
-        // Radio button selected state is automatically handled by ButtonGroup
-    }//GEN-LAST:event_ScheduledTreeActionPerformed
+    private void ScheduledTreeActionPerformed(java.awt.event.ActionEvent evt) {
+    }
 
-    private void comparenameActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_comparenameActionPerformed
-        // When comparing by name, content comparison becomes redundant
-        // But we let the user choose any combination
-    }//GEN-LAST:event_comparenameActionPerformed
+    private void comparenameActionPerformed(java.awt.event.ActionEvent evt) {
+    }
 
-    private void formWindowClosing(java.awt.event.WindowEvent evt) {//GEN-FIRST:event_formWindowClosing
-        // Cancel running task
-        if (currentTask != null) {
-            currentTask.requestStop();
-        }
-        if (workerThread != null && workerThread.isAlive()) {
-            workerThread.interrupt();
-        }
+    private void formWindowClosing(java.awt.event.WindowEvent evt) {
+        if (currentTask != null) currentTask.requestStop();
+        if (workerThread != null && workerThread.isAlive()) workerThread.interrupt();
 
         Logger log = Logger.getLogger(SchedulerFiles.class.getName());
         log.info("End");
@@ -434,7 +376,7 @@ public class SchedulerFiles extends javax.swing.JFrame {
             h.close();
             log.removeHandler(h);
         }
-    }//GEN-LAST:event_formWindowClosing
+    }
 
     // -- Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JTextField DestinationPath;
@@ -462,10 +404,10 @@ public class SchedulerFiles extends javax.swing.JFrame {
         try {
             javax.swing.UIManager.setLookAndFeel(
                 javax.swing.UIManager.getSystemLookAndFeelClassName());
-        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | javax.swing.UnsupportedLookAndFeelException ex) {
-            java.util.logging.Logger.getLogger(SchedulerFiles.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException
+                 | javax.swing.UnsupportedLookAndFeelException ex) {
+            Logger.getLogger(SchedulerFiles.class.getName()).log(Level.SEVERE, null, ex);
         }
-
         java.awt.EventQueue.invokeLater(() -> new SchedulerFiles().setVisible(true));
     }
 }
