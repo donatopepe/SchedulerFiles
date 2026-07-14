@@ -10,6 +10,7 @@ import java.util.Set;
 
 /** Keeps two copy destinations identical and verifies mirror parity. */
 public final class MirrorService {
+    private final HashCache hashCache = new HashCache();
 
     public boolean hasStaleEntries(Path primary, Path replica) throws IOException {
         Set<Path> primaryFiles = files(primary);
@@ -64,10 +65,11 @@ public final class MirrorService {
                     return FileVisitResult.CONTINUE;
                 }
                 Path target = replica.resolve(primary.relativize(file));
-                if (!Files.exists(target) || !HashUtil.sha256(file).equals(HashUtil.sha256(target))) {
+                if (!Files.exists(target) || !hashCache.sha256(file).equals(hashCache.sha256(target))) {
                     Files.createDirectories(target.getParent());
                     Files.copy(file, target, StandardCopyOption.REPLACE_EXISTING,
                         StandardCopyOption.COPY_ATTRIBUTES);
+                    hashCache.invalidate(target);
                 }
                 return FileVisitResult.CONTINUE;
             }
@@ -92,8 +94,8 @@ public final class MirrorService {
         for (Path relative : primaryFiles) {
             Path replicaFile = replica.resolve(relative);
             if (!Files.exists(replicaFile)) return false;
-            if (!HashUtil.sha256(primary.resolve(relative)).equals(
-                    HashUtil.sha256(replicaFile))) return false;
+            if (!hashCache.sha256(primary.resolve(relative)).equals(
+                    hashCache.sha256(replicaFile))) return false;
         }
         return true;
     }

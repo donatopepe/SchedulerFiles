@@ -63,7 +63,7 @@ Nota: `javac -cp` deve usare `dist/lib/AbsoluteLayout.jar`, non `src/lib`.
 
 - [x] Copia atomica per file: temp, hash, rename.
 - [x] Manifest mirror con percorso, dimensione, SHA-256 e stato.
-- [ ] Recovery mirror da manifest dopo interruzione.
+- [x] Recovery mirror da manifest dopo interruzione.
 - [x] Gestione conflitti durante `--mirror-import`.
 - [x] Lock esclusivo sulle destinazioni.
 - [x] Test recovery, conflitti e copia atomica.
@@ -71,10 +71,10 @@ Nota: `javac -cp` deve usare `dist/lib/AbsoluteLayout.jar`, non `src/lib`.
 ## Ottimizzazioni performance
 
 - [x] Indicizzare destinazione una volta per operazione, evitando `listFiles()` per ogni file.
-- [ ] Cache hash destinazione con size/lastModified.
+- [x] Cache hash destinazione con size/lastModified.
 - [x] Sostituire `MappedByteBuffer` con buffer riutilizzabile per confronto byte.
-- [ ] Accorpare flush transaction log per ridurre I/O.
-- [ ] Valutare hashing parallelo opzionale su storage veloce.
+- [x] Accorpare flush transaction log per ridurre I/O.
+- [x] Valutare hashing parallelo opzionale su storage veloce.
 
 ## Prossimo lavoro consigliato
 
