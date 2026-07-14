@@ -11,8 +11,21 @@ import java.util.Set;
 /** Keeps two copy destinations identical and verifies mirror parity. */
 public final class MirrorService {
 
+    public boolean hasStaleEntries(Path primary, Path replica) throws IOException {
+        Set<Path> primaryFiles = files(primary);
+        Set<Path> replicaFiles = files(replica);
+        for (Path relative : replicaFiles) {
+            if (!primaryFiles.contains(relative)) return true;
+        }
+        return false;
+    }
+
     public void synchronize(Path primary, Path replica) throws IOException {
-        removeStale(primary, replica);
+        synchronize(primary, replica, true);
+    }
+
+    public void synchronize(Path primary, Path replica, boolean removeStaleEntries) throws IOException {
+        if (removeStaleEntries) removeStale(primary, replica);
         Files.walkFileTree(primary, new SimpleFileVisitor<Path>() {
             @Override
             public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
