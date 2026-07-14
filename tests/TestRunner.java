@@ -141,6 +141,7 @@ public class TestRunner {
         runTestClass(MoveClassTest.class);
         runTestClass(UpdaterTest.class);
         runTestClass(CliTest.class);
+        runTestClass(MirrorServiceTest.class);
 
         int p = passed.get(), f = failed.get();
         System.out.println("\n============================================");
