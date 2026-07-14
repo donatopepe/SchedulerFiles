@@ -16,6 +16,11 @@ public class Updater {
     private static final String RELEASE_URL = "https://github.com/" + REPO + "/releases/latest";
     private static final Logger LOG = Logger.getLogger(Updater.class.getName());
 
+    // Cache: avoid repeated API calls within the same JVM session
+    private static String cachedLatestVersion;
+    private static long cacheTimestamp;
+    private static final long CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
     private final String currentVersion;
     private final String apiUrl;  // overridable for testing
 
@@ -57,6 +62,12 @@ public class Updater {
     }
 
     public String fetchLatestVersion() {
+        // Return cached result if still fresh
+        if (cachedLatestVersion != null
+            && System.currentTimeMillis() - cacheTimestamp < CACHE_TTL_MS) {
+            return cachedLatestVersion;
+        }
+
         HttpURLConnection conn = null;
         try {
             URL url = new URI(apiUrl).toURL();
@@ -80,7 +91,9 @@ public class Updater {
                 while ((line = br.readLine()) != null) {
                     json.append(line);
                 }
-                return parseTagName(json.toString());
+                cachedLatestVersion = parseTagName(json.toString());
+                cacheTimestamp = System.currentTimeMillis();
+                return cachedLatestVersion;
             }
         } catch (IOException | URISyntaxException e) {
             LOG.log(Level.FINE, "Update check failed: " + e.getMessage(), e);
@@ -88,6 +101,12 @@ public class Updater {
         } finally {
             if (conn != null) conn.disconnect();
         }
+    }
+
+    /** Clear the cached version (for testing). */
+    static void clearCache() {
+        cachedLatestVersion = null;
+        cacheTimestamp = 0;
     }
 
     static String parseTagName(String json) {

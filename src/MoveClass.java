@@ -333,9 +333,12 @@ public class MoveClass implements Runnable {
             } else {
                 // Keep original tree structure: dest + relative directory (without filename)
                 String relative = filePath.substring(source.toString().length());
-                int lastSep = relative.lastIndexOf("/");
-                if (lastSep < 0) lastSep = relative.lastIndexOf("\\");
-                String dirPart = (lastSep >= 0) ? relative.substring(0, lastSep + 1) : "/";
+                int lastSep = relative.lastIndexOf(File.separatorChar);
+                // Also handle forward slash on Unix or mixed paths
+                if (lastSep < 0 && File.separatorChar != '/') {
+                    lastSep = relative.lastIndexOf('/');
+                }
+                String dirPart = (lastSep >= 0) ? relative.substring(0, lastSep + 1) : File.separator;
                 dest = destination.toString() + dirPart;
             }
 
@@ -351,30 +354,62 @@ public class MoveClass implements Runnable {
     private void listFiles(File dir) {
         if (isStopped()) return;
 
-        // Never recurse into the destination directory (prevents copying
-        // transaction log or other artifacts into themselves)
-        if (dir.toPath().toAbsolutePath().equals(destination.toAbsolutePath())) {
-            return;
+        final Path dstAbs = destination.toAbsolutePath().normalize();
+        final Path srcAbs = dir.toPath().toAbsolutePath().normalize();
+
+        // If destination is same as or inside source, skip recursive walk
+        // to avoid copying transaction log or other artifacts into themselves
+        boolean skipDest = srcAbs.equals(dstAbs) || srcAbs.startsWith(dstAbs)
+            || dstAbs.startsWith(srcAbs);
+
+        synchronized (fileAccumulator) {
+            fileAccumulator.clear();
         }
 
-        File[] entries = dir.listFiles();
-        if (entries == null) return;
+        try {
+            java.nio.file.Files.walkFileTree(dir.toPath(),
+                new java.util.HashSet<java.nio.file.FileVisitOption>() {{
+                    add(java.nio.file.FileVisitOption.FOLLOW_LINKS);
+                }},
+                Integer.MAX_VALUE,
+                new java.nio.file.SimpleFileVisitor<java.nio.file.Path>() {
 
-        for (File entry : entries) {
-            if (isStopped()) return;
+                    @Override
+                    public java.nio.file.FileVisitResult preVisitDirectory(
+                            java.nio.file.Path dirPath,
+                            java.nio.file.attribute.BasicFileAttributes attrs) {
+                        if (isStopped())
+                            return java.nio.file.FileVisitResult.TERMINATE;
+                        // Skip destination directory if inside source
+                        if (skipDest) {
+                            Path abs = dirPath.toAbsolutePath().normalize();
+                            if (abs.equals(dstAbs) || abs.startsWith(dstAbs)) {
+                                return java.nio.file.FileVisitResult.SKIP_SUBTREE;
+                            }
+                        }
+                        return java.nio.file.FileVisitResult.CONTINUE;
+                    }
 
-            if (entry.isDirectory()) {
-                // Skip destination subdirectory if inside source
-                Path entryPath = entry.toPath().toAbsolutePath();
-                if (!entryPath.equals(destination.toAbsolutePath())
-                    && !entryPath.startsWith(destination.toAbsolutePath())) {
-                    listFiles(entry);
-                }
-            } else {
-                synchronized (fileAccumulator) {
-                    fileAccumulator.add(entry.getPath());
-                }
-            }
+                    @Override
+                    public java.nio.file.FileVisitResult visitFile(
+                            java.nio.file.Path file,
+                            java.nio.file.attribute.BasicFileAttributes attrs) {
+                        if (isStopped())
+                            return java.nio.file.FileVisitResult.TERMINATE;
+                        synchronized (fileAccumulator) {
+                            fileAccumulator.add(file.toString());
+                        }
+                        return java.nio.file.FileVisitResult.CONTINUE;
+                    }
+
+                    @Override
+                    public java.nio.file.FileVisitResult visitFileFailed(
+                            java.nio.file.Path file, IOException exc) {
+                        return java.nio.file.FileVisitResult.CONTINUE;
+                    }
+                });
+        } catch (IOException e) {
+            log("Error walking files: " + e.getMessage());
         }
     }
 
