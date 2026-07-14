@@ -79,7 +79,8 @@ public class Cli {
 
         // Print log to stdout
         System.out.print(dummyLog.getText());
-        return EXIT_OK;
+        if (mc.isCancelled()) return EXIT_CANCELLED;
+        return mc.hasErrors() ? EXIT_ERROR : EXIT_OK;
     }
 
     static void printUsage(PrintStream out) {

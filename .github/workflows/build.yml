@@ -22,11 +22,12 @@ jobs:
       - name: Compile sources (Java 8 target)
         run: |
           mkdir -p build/classes
-          javac --release 8 -d build/classes -cp "dist/lib/AbsoluteLayout.jar" src/*.java
+          javac --release 8 -Xlint:all -Werror -d build/classes -cp "dist/lib/AbsoluteLayout.jar" src/*.java
+          cp src/about.html build/classes/about.html
 
       - name: Compile tests
         run: |
-          javac --release 8 -d build/classes -cp "build/classes:dist/lib/AbsoluteLayout.jar" tests/*.java
+          javac --release 8 -Xlint:all -Werror -d build/classes -cp "build/classes:dist/lib/AbsoluteLayout.jar" tests/*.java
 
       - name: Run tests
         run: java -cp "build/classes:dist/lib/AbsoluteLayout.jar" TestRunner
@@ -35,14 +36,10 @@ jobs:
         run: |
           mkdir -p build/jar/lib
           cp dist/lib/AbsoluteLayout.jar build/jar/lib/
-          for f in DragListener HashUtil LengthFirstComparator MoveClass SchedulerFiles TextAreaHandler TextAreaOutputStream infoJFrame; do
-            cp "build/classes/${f}.class" "build/jar/"
-          done
-          for f in build/classes/SchedulerFiles\$*.class; do
-            cp "$f" "build/jar/"
-          done
+          find build/classes -maxdepth 1 -name '*.class' -exec cp {} build/jar/ \;
+          cp build/classes/about.html build/jar/about.html
           cd build/jar
-          jar cfm ../../dist/SchedulerFiles.jar ../../build/Manifest.txt *.class lib/
+          jar cfm ../../dist/SchedulerFiles.jar ../../build/Manifest.txt *.class about.html lib/
           cd ../..
 
       - name: Upload JAR as artifact

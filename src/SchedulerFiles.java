@@ -25,6 +25,7 @@ import org.netbeans.lib.awtextra.AbsoluteConstraints;
 
 public class SchedulerFiles extends javax.swing.JFrame {
 
+    private static final long serialVersionUID = 1L;
     private final String paypalme = "https://www.paypal.me/DonatoPepe";
     private final javax.swing.JCheckBox verifyHash = new javax.swing.JCheckBox("Verify SHA-256");
     private Thread workerThread;
@@ -80,7 +81,7 @@ public class SchedulerFiles extends javax.swing.JFrame {
         connectToDragDrop();
         checkForUpdates();
 
-        // Tooltips
+        // Tooltips and accessible names
         SourcePath.setToolTipText("Source directory path - type, drag & drop, or Browse");
         DestinationPath.setToolTipText("Destination directory path - type, drag & drop, or Browse");
         jButtonScheda.setToolTipText("Start the copy/move operation");
@@ -91,6 +92,27 @@ public class SchedulerFiles extends javax.swing.JFrame {
         comparefile.setToolTipText("Skip files with identical content");
         comparename.setToolTipText("Skip files with the same filename");
         verifyHash.setToolTipText("Compute SHA-256 hash before and after transfer");
+        SourcePath.getAccessibleContext().setAccessibleName("Source directory");
+        DestinationPath.getAccessibleContext().setAccessibleName("Destination directory");
+        jButtonScheda.getAccessibleContext().setAccessibleName("Start file transfer");
+        jButtonCancel.getAccessibleContext().setAccessibleName("Cancel file transfer");
+        jCheckBoxCopia.getAccessibleContext().setAccessibleDescription(
+            "Selected copies files; unselected moves and removes source files");
+        OriginalTree.getAccessibleContext().setAccessibleDescription(
+            "Preserve source folder hierarchy");
+        ScheduledTree.getAccessibleContext().setAccessibleDescription(
+            "Organize files by year, month, and extension");
+        comparefile.getAccessibleContext().setAccessibleDescription(
+            "Skip destination files with identical content");
+        comparename.getAccessibleContext().setAccessibleDescription(
+            "Skip destination files with identical names");
+        avanzamento.getAccessibleContext().setAccessibleName("Transfer progress");
+        jTextLog.getAccessibleContext().setAccessibleName("Transfer log");
+        jTextLog.getAccessibleContext().setAccessibleDescription(
+            "File transfer status and error messages");
+        jLabel1.setLabelFor(SourcePath);
+        jLabel3.setLabelFor(DestinationPath);
+        getRootPane().setDefaultButton(jButtonScheda);
 
         // Verify hash inside compare panel (second row)
         verifyHash.setFont(new java.awt.Font("Arial", 0, 12));
@@ -102,11 +124,13 @@ public class SchedulerFiles extends javax.swing.JFrame {
     private void addBrowseButtons() {
         javax.swing.JButton btnSrc = new javax.swing.JButton("Browse");
         btnSrc.setFont(new java.awt.Font("Arial", 0, 12));
+        btnSrc.getAccessibleContext().setAccessibleName("Browse source directory");
         btnSrc.addActionListener(e -> chooseDirectory(SourcePath));
         getContentPane().add(btnSrc, new AbsoluteConstraints(625, 18, 80, 25));
 
         javax.swing.JButton btnDst = new javax.swing.JButton("Browse");
         btnDst.setFont(new java.awt.Font("Arial", 0, 12));
+        btnDst.getAccessibleContext().setAccessibleName("Browse destination directory");
         btnDst.addActionListener(e -> chooseDirectory(DestinationPath));
         getContentPane().add(btnDst, new AbsoluteConstraints(625, 46, 80, 25));
     }
@@ -414,7 +438,7 @@ public class SchedulerFiles extends javax.swing.JFrame {
         if (task != null) task.requestStop();
         if (t != null && t.isAlive()) {
             t.interrupt();
-            try { t.join(2000); } catch (InterruptedException ignored) {}
+            // Do not join on EDT: worker may be waiting for invokeAndWait().
         }
 
         Logger log = Logger.getLogger(SchedulerFiles.class.getName());

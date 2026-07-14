@@ -5,6 +5,8 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class UpdaterTest {
 
@@ -16,6 +18,7 @@ public class UpdaterTest {
             UpdaterTest::testCompareVersionsOlder,
             UpdaterTest::testCompareVersionsDifferentLength,
             UpdaterTest::testCompareVersionsWithVPrefix,
+            UpdaterTest::testComparePrereleaseVersions,
             // JSON parsing
             UpdaterTest::testParseTagName,
             UpdaterTest::testParseTagNameNoMatch,
@@ -29,6 +32,8 @@ public class UpdaterTest {
             UpdaterTest::testFetchLatestVersionEmptyBody,
             UpdaterTest::testFetchLatestVersionTimeout,
             UpdaterTest::testFetchLatestVersionNullUrl,
+            UpdaterTest::testCacheSeparatesApiUrls,
+            UpdaterTest::testConcurrentFetchUsesCache,
             // Check for updates (full dialog flow mocked)
             UpdaterTest::testAlreadyLatestNoDialog,
             UpdaterTest::testNewVersionDetected
@@ -60,6 +65,13 @@ public class UpdaterTest {
     static void testCompareVersionsWithVPrefix() {
         int r = Updater.compareVersions("v1.0.0", "1.0.0");
         TestRunner.assertEquals(0, r, "v prefix stripped for comparison");
+    }
+
+    static void testComparePrereleaseVersions() {
+        TestRunner.assertTrue(Updater.compareVersions("1.2.0-beta", "1.2.0") > 0,
+            "release is newer than prerelease");
+        TestRunner.assertTrue(Updater.compareVersions("1.2.0-alpha", "1.2.0-beta") > 0,
+            "beta is newer than alpha");
     }
 
     // ===== JSON parsing =====
@@ -174,6 +186,64 @@ public class UpdaterTest {
             "unresolvable host returns null (got: " + v + ")");
     }
 
+    static void testCacheSeparatesApiUrls() {
+        Updater.clearCache();
+        try {
+            AtomicInteger firstRequests = new AtomicInteger();
+            AtomicInteger secondRequests = new AtomicInteger();
+            HttpServer first = startMockServer(200, "{\"tag_name\":\"v1.0.0\"}", firstRequests);
+            HttpServer second = startMockServer(200, "{\"tag_name\":\"v2.0.0\"}", secondRequests);
+            try {
+                TestRunner.assertEquals("v1.0.0", new Updater(url(first)).fetchLatestVersion(),
+                    "first API URL result");
+                TestRunner.assertEquals("v2.0.0", new Updater(url(second)).fetchLatestVersion(),
+                    "second API URL result");
+                TestRunner.assertEquals("v1.0.0", new Updater(url(first)).fetchLatestVersion(),
+                    "first API URL remains cached");
+                TestRunner.assertEquals(1, firstRequests.get(), "first API called once");
+                TestRunner.assertEquals(1, secondRequests.get(), "second API called once");
+            } finally {
+                first.stop(0);
+                second.stop(0);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    static void testConcurrentFetchUsesCache() {
+        Updater.clearCache();
+        try {
+            AtomicInteger requests = new AtomicInteger();
+            HttpServer server = startMockServer(200, "{\"tag_name\":\"v3.0.0\"}", requests);
+            try {
+                final String apiUrl = url(server);
+                final CountDownLatch start = new CountDownLatch(1);
+                List<Thread> threads = new ArrayList<>();
+                for (int i = 0; i < 8; i++) {
+                    Thread t = new Thread(() -> {
+                        try {
+                            start.await();
+                            TestRunner.assertEquals("v3.0.0", new Updater(apiUrl).fetchLatestVersion(),
+                                "concurrent fetch result");
+                        } catch (Exception e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
+                    threads.add(t);
+                    t.start();
+                }
+                start.countDown();
+                for (Thread t : threads) t.join();
+                TestRunner.assertEquals(1, requests.get(), "concurrent fetch calls API once");
+            } finally {
+                server.stop(0);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     // ===== Full check flow =====
 
     static void testAlreadyLatestNoDialog() {
@@ -217,9 +287,19 @@ public class UpdaterTest {
 
     // ===== Mock HTTP server helper =====
 
+    private static String url(HttpServer server) {
+        return "http://localhost:" + server.getAddress().getPort() + "/";
+    }
+
     private static HttpServer startMockServer(int statusCode, String body) throws IOException {
+        return startMockServer(statusCode, body, null);
+    }
+
+    private static HttpServer startMockServer(int statusCode, String body,
+                                               AtomicInteger requests) throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
         server.createContext("/", (HttpExchange e) -> {
+            if (requests != null) requests.incrementAndGet();
             byte[] bytes = body.getBytes("UTF-8");
             e.sendResponseHeaders(statusCode, bytes.length);
             try (OutputStream os = e.getResponseBody()) {
