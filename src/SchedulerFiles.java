@@ -431,6 +431,13 @@ public class SchedulerFiles extends javax.swing.JFrame {
     // End of variables declaration//GEN-END:variables
 
     public static void main(String args[]) {
+        // CLI mode: if arguments provided, run headless
+        if (args.length > 0) {
+            System.exit(Cli.run(args));
+            return;
+        }
+
+        // GUI mode
         try {
             javax.swing.UIManager.setLookAndFeel(
                 javax.swing.UIManager.getSystemLookAndFeelClassName());

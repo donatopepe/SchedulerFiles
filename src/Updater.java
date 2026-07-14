@@ -25,9 +25,31 @@ public class Updater {
 
     /** Package-private: allows injecting a custom API URL (e.g. local test server). */
     Updater(String apiUrl) {
-        String v = getClass().getPackage().getImplementationVersion();
-        this.currentVersion = (v != null) ? v : "0.0.0";
+        this.currentVersion = detectVersion();
         this.apiUrl = apiUrl;
+    }
+
+    /** Read version from manifest, or return "0.0.0" fallback. */
+    private static String detectVersion() {
+        // First try: Package API (works from JAR for named packages)
+        String v = Updater.class.getPackage().getImplementationVersion();
+        if (v != null) return v;
+
+        // Second try: read META-INF/MANIFEST.MF directly
+        try (java.io.InputStream is = Updater.class.getResourceAsStream(
+                "/META-INF/MANIFEST.MF")) {
+            if (is != null) {
+                String content = new java.util.Scanner(is, "UTF-8")
+                    .useDelimiter("\\A").next();
+                for (String line : content.split("\n")) {
+                    if (line.startsWith("Implementation-Version:")) {
+                        return line.substring("Implementation-Version:".length()).trim();
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+
+        return "0.0.0";
     }
 
     public String getCurrentVersion() {
