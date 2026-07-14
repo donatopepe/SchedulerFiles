@@ -55,6 +55,8 @@ Nota: `javac -cp` deve usare `dist/lib/AbsoluteLayout.jar`, non `src/lib`.
 - [x] Rimuovere file obsoleti da seconda destinazione per mantenerla gemella.
 - [x] Bloccare combinazione `--dest2` + `--move`.
 - [x] Aggiungere test replica e validazione opzioni.
+- [x] Aggiungere seconda destinazione opzionale nella GUI.
+- [x] Aggiornare guida CLI/GUI per replica twin.
 
 ## Ottimizzazioni performance
 
