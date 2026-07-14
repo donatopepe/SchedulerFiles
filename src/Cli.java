@@ -105,7 +105,7 @@ public class Cli {
         out.println("Compare options:");
         out.println("  --compare-name             Skip files with same filename");
         out.println("  --compare-content          Skip files with identical content");
-        out.println("  --verify-hash              Compute & verify SHA-256 hash");
+        out.println("  --verify-hash              Compute & verify SHA-256 hash (default)");
         out.println();
         out.println("Other:");
         out.println("  -h, --help                 Show this help and exit");
@@ -126,7 +126,7 @@ public class Cli {
         boolean scheduledTree;
         boolean compareName;
         boolean compareContent;
-        boolean verifyHash;
+        boolean verifyHash = true;
         boolean help;
         boolean showVersion;
 
