@@ -249,7 +249,7 @@ public class SchedulerFiles extends javax.swing.JFrame {
 
         GroupTree.add(ScheduledTree);
         ScheduledTree.setFont(new java.awt.Font("Arial", 0, 12)); // NOI18N
-        ScheduledTree.setText("Tree scheduled: divided by year, month and extension");
+        ScheduledTree.setText("Scheduled: by year/month/extension");
         ScheduledTree.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 ScheduledTreeActionPerformed(evt);
@@ -263,7 +263,7 @@ public class SchedulerFiles extends javax.swing.JFrame {
         OriginalTree.setText("Original Tree");
         jPanelGerarchia.add(OriginalTree, new org.netbeans.lib.awtextra.AbsoluteConstraints(10, 10, -1, -1));
 
-        getContentPane().add(jPanelGerarchia, new org.netbeans.lib.awtextra.AbsoluteConstraints(10, 90, 350, 60));
+        getContentPane().add(jPanelGerarchia, new org.netbeans.lib.awtextra.AbsoluteConstraints(10, 92, 350, 68));
 
         jPanel1.setBackground(new java.awt.Color(204, 204, 204));
         jPanel1.setLayout(new org.netbeans.lib.awtextra.AbsoluteLayout());
@@ -280,7 +280,7 @@ public class SchedulerFiles extends javax.swing.JFrame {
         });
         jPanel1.add(comparename, new org.netbeans.lib.awtextra.AbsoluteConstraints(140, 10, -1, -1));
 
-        getContentPane().add(jPanel1, new org.netbeans.lib.awtextra.AbsoluteConstraints(10, 160, 350, 60));
+        getContentPane().add(jPanel1, new org.netbeans.lib.awtextra.AbsoluteConstraints(10, 168, 350, 60));
 
         pack();
         setLocationRelativeTo(null);
