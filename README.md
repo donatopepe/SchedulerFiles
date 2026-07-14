@@ -34,6 +34,6 @@ Or from NetBeans: right-click project → Run.
 
 ## License
 
-GNU General Public License v3.0 or later.
+Free software. Do what you want with it.
 
 Copyright (C) 2020 Donato Pepe
