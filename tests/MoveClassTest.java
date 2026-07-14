@@ -17,6 +17,7 @@ public class MoveClassTest {
             MoveClassTest::testCompareByNameSkipsIdentical,
             MoveClassTest::testCompareByContentSkipsIdentical,
             MoveClassTest::testCompareByContentCopiesDifferent,
+            MoveClassTest::testCompareByHash,
             MoveClassTest::testNestedDirectories,
             MoveClassTest::testEmptySourceDirectory,
             MoveClassTest::testRequestStopDuringOperation,
@@ -24,6 +25,9 @@ public class MoveClassTest {
             MoveClassTest::testNonexistentSource,
             MoveClassTest::testNonexistentDestination,
             MoveClassTest::testHashVerificationMatches,
+            MoveClassTest::testTransactionLogExists,
+            MoveClassTest::testTransactionLogContainsEntries,
+            MoveClassTest::testTransactionLogAfterMove,
             MoveClassTest::testLogOutput
         );
     }
@@ -351,6 +355,99 @@ public class MoveClassTest {
             String logText = log.getText();
             TestRunner.assertTrue(logText.contains("Hash OK"),
                 "hash verification: 'Hash OK' in log");
+            TestRunner.deleteRecursive(tmp);
+            TestRunner.deleteRecursive(dst);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    // ===== HASH COMPARISON =====
+
+    static void testCompareByHash() {
+        try {
+            Path tmp = TestRunner.createTempDir("cmpHash_");
+            TestRunner.createFile(tmp, "data.bin", "identical content via hash");
+            Path dst = TestRunner.createTempDir("cmpHashDst_");
+            TestRunner.createFile(dst, "data.bin", "identical content via hash");
+
+            // compareByContent=true + verifyHash=true => uses hash comparison
+            JTextArea log = new JTextArea();
+            JLabel progress = new JLabel();
+            MoveClass mc = new MoveClass(tmp, dst, log, progress,
+                true, false, true, false, true);
+            mc.run();
+            String text = log.getText();
+            TestRunner.assertTrue(text.contains("Skipping"),
+                "hash comparison: identical file is skipped");
+            TestRunner.assertTrue(text.contains("Hash compare"),
+                "hash comparison: log mentions 'Hash compare'");
+            TestRunner.deleteRecursive(tmp);
+            TestRunner.deleteRecursive(dst);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    // ===== TRANSACTION LOG =====
+
+    static void testTransactionLogExists() {
+        try {
+            Path tmp = TestRunner.createTempDir("txLogExist_");
+            TestRunner.createFile(tmp, "a.txt", "content");
+            Path dst = TestRunner.createTempDir("txLogExistDst_");
+            runMove(tmp, dst, true, false, false, false, false);
+
+            Path txLog = dst.resolve("_files_scheduler.log");
+            TestRunner.assertTrue(Files.exists(txLog),
+                "transaction log file exists in destination: " + txLog);
+            String content = new String(Files.readAllBytes(txLog), "UTF-8");
+            TestRunner.assertTrue(content.contains("COPY"),
+                "transaction log contains COPY operation");
+            TestRunner.assertTrue(content.contains("a.txt"),
+                "transaction log contains filename");
+            TestRunner.assertTrue(content.contains("END"),
+                "transaction log contains END marker");
+            TestRunner.deleteRecursive(tmp);
+            TestRunner.deleteRecursive(dst);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    static void testTransactionLogContainsEntries() {
+        try {
+            Path tmp = TestRunner.createTempDir("txLogEntries_");
+            TestRunner.createFile(tmp, "f1.txt", "file one");
+            TestRunner.createFile(tmp, "f2.txt", "file two");
+            Path dst = TestRunner.createTempDir("txLogEntriesDst_");
+            runMove(tmp, dst, true, false, false, false, true);
+
+            Path txLog = dst.resolve("_files_scheduler.log");
+            String content = new String(Files.readAllBytes(txLog), "UTF-8");
+            TestRunner.assertTrue(content.contains("f1.txt"), "tx log: f1.txt");
+            TestRunner.assertTrue(content.contains("f2.txt"), "tx log: f2.txt");
+            TestRunner.assertTrue(content.contains("H="), "tx log: hash present");
+            TestRunner.assertTrue(content.contains("D="), "tx log: dest hash");
+            TestRunner.assertTrue(content.contains("Session start"), "tx log: session header");
+            TestRunner.deleteRecursive(tmp);
+            TestRunner.deleteRecursive(dst);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    static void testTransactionLogAfterMove() {
+        try {
+            Path tmp = TestRunner.createTempDir("txLogMove_");
+            TestRunner.createFile(tmp, "moveme.txt", "will be moved");
+            Path dst = TestRunner.createTempDir("txLogMoveDst_");
+            runMove(tmp, dst, false, false, false, false, false);
+
+            Path txLog = dst.resolve("_files_scheduler.log");
+            String content = new String(Files.readAllBytes(txLog), "UTF-8");
+            TestRunner.assertTrue(content.contains("MOVE"),
+                "transaction log contains MOVE operation");
             TestRunner.deleteRecursive(tmp);
             TestRunner.deleteRecursive(dst);
         } catch (Exception e) {
