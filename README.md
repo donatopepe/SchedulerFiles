@@ -1,6 +1,10 @@
 # SchedulerFiles
 
-Java Swing and command-line utility for safe file copy/move operations.
+[![Build and test](https://github.com/donatopepe/SchedulerFiles/actions/workflows/build.yml/badge.svg)](https://github.com/donatopepe/SchedulerFiles/actions/workflows/build.yml)
+[![Java 8+](https://img.shields.io/badge/Java-8%2B-blue)](https://adoptium.net/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+Java Swing and command-line utility for safe, verifiable file copy, move, and two-destination replication. Designed for unattended operations where atomic transfer, destination locking, checksums, manifests, and transaction logs matter.
 
 ## Features
 
@@ -108,6 +112,4 @@ NetBeans users can open project and run **Build Project**. CI workflow in `.gith
 
 ## License
 
-Free software. Do what you want with it.
-
-Copyright (C) 2020 Donato Pepe
+[MIT](LICENSE). Copyright (C) 2020-2026 Donato Pepe.
