@@ -69,6 +69,21 @@ Main CLI options:
 --help               Print help
 ```
 
+## Release
+
+Download the Java 8-compatible JAR or complete ZIP from [v1.0.0](https://github.com/donatopepe/SchedulerFiles/releases/tag/v1.0.0). Verify artifacts against the published `SHA256SUMS.txt` before execution.
+
+```bash
+sha256sum -c SHA256SUMS.txt
+java -jar SchedulerFiles.jar
+```
+
+CLI usage requires `AbsoluteLayout.jar` from the ZIP on the classpath:
+
+```bash
+java -cp 'SchedulerFiles.jar:lib/AbsoluteLayout.jar' Cli --help
+```
+
 ## Build and test
 
 ### Windows Command Prompt
